@@ -63,6 +63,17 @@ export interface HoldemPublicSnapshot {
     { stack: number; folded: boolean; streetPut: number; handInvested: number }
   >;
   payouts: { seatIndex: number; userId: string; amount: number }[] | null;
+  /**
+   * Total chips awarded when `phase` is `complete` (sum of `payouts`).
+   * The live `pot` field is cleared after payout; use this for post-hand UI.
+   * Omitted on older persisted snapshots until the next hand is saved.
+   */
+  awardedPot?: number | null;
+  /**
+   * Hole cards shown after the hand ends (showdown / pot awarded).
+   * Only seats that were not folded when the hand finished.
+   */
+  revealedHoles?: Record<string, readonly [string, string]>;
 }
 
 function bySeat(p: HoldemPlayerState[], seat: number): HoldemPlayerState | undefined {
@@ -371,12 +382,27 @@ export function holdemPublicSnapshot(s: HoldemState): HoldemPublicSnapshot {
       handInvested: p.handInvested,
     };
   }
+  let revealedHoles: HoldemPublicSnapshot["revealedHoles"];
+  if (s.phase === "complete" || s.phase === "showdown") {
+    revealedHoles = {};
+    for (const p of s.players) {
+      if (!p.folded) {
+        revealedHoles[String(p.seatIndex)] = p.hole;
+      }
+    }
+  }
+  const awardedPot =
+    s.phase === "complete" && s.payouts != null
+      ? s.payouts.reduce((acc, p) => acc + p.amount, 0)
+      : null;
+
   return {
     handSeq: s.handSeq,
     phase: s.phase,
     street: s.street,
     board: s.board,
     pot: s.pot,
+    awardedPot,
     maxStreetBet: s.maxStreetBet,
     minRaise: s.minRaise,
     buttonSeat: s.buttonSeat,
@@ -385,6 +411,7 @@ export function holdemPublicSnapshot(s: HoldemState): HoldemPublicSnapshot {
     toActSeat: s.toActSeat,
     seats,
     payouts: s.payouts,
+    revealedHoles,
   };
 }
 

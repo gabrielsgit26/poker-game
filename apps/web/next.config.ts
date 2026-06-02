@@ -5,7 +5,7 @@ const proxy =
   process.env.NEXT_PUBLIC_API_PROXY_TARGET?.trim();
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@telegram-poker/shared", "phaser"],
+  transpilePackages: ["@telegram-poker/shared"],
   async rewrites() {
     if (!proxy) return [];
     const base = proxy.replace(/\/$/, "");

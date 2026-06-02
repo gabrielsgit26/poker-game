@@ -31,6 +31,7 @@ export function buildPokerTableUiState(
     const row = seats.find((s) => s.seatIndex === i);
     const uid = row?.userId ?? null;
     const h = holdem?.seats[String(i)];
+    const rev = holdem?.revealedHoles?.[String(i)] as [string, string] | undefined;
     seatUis.push({
       seatIndex: i,
       userId: uid,
@@ -41,7 +42,8 @@ export function buildPokerTableUiState(
       isSb: holdem ? holdem.sbSeat === i : false,
       isBb: holdem ? holdem.bbSeat === i : false,
       holeCards:
-        viewerSeatIndex === i && viewerHoleCards ? [...viewerHoleCards] as [string, string] : null,
+        viewerSeatIndex === i && viewerHoleCards ? ([...viewerHoleCards] as [string, string]) : null,
+      revealedHoleCards: rev ? [...rev] as [string, string] : null,
     });
   }
 
@@ -131,6 +133,23 @@ export function buildPokerTableUiState(
   );
   const turnTimerTotalMs = Math.max(3000, (table.timerSeconds ?? 15) * 1000);
 
+  const rawPot = holdem?.pot ?? 0;
+  const payoutTotal =
+    holdem?.phase === "complete" && holdem.payouts != null
+      ? holdem.payouts.reduce((acc, p) => acc + p.amount, 0)
+      : null;
+  const potDisplay =
+    holdem?.phase === "complete" && payoutTotal != null
+      ? (holdem.awardedPot ?? payoutTotal)
+      : rawPot;
+
+  let streetLabelOut: string | null = holdem ? streetLabel(holdem.street) : null;
+  if (holdem?.phase === "complete") {
+    streetLabelOut = "Hand complete";
+  } else if (holdem?.phase === "showdown") {
+    streetLabelOut = "Showdown";
+  }
+
   return {
     width: dims.width,
     height: dims.height,
@@ -139,9 +158,10 @@ export function buildPokerTableUiState(
     clubName: table.clubName,
     blindsLabel: `${table.smallBlind}/${table.bigBlind}`,
     handSeq: holdem ? holdem.handSeq : null,
-    streetLabel: holdem ? streetLabel(holdem.street) : null,
+    streetLabel: streetLabelOut,
     phase: holdem ? holdem.phase : null,
-    pot: holdem?.pot ?? 0,
+    pot: rawPot,
+    potDisplay,
     board: holdem ? [...holdem.board] : [],
     viewerSeatIndex,
     viewerUserId: opts.viewerUserId,
@@ -166,5 +186,6 @@ export function buildPokerTableUiState(
     playersSeated: table.players,
     inHand,
     showHoleBacksForOthers,
+    payouts: holdem?.payouts ?? null,
   };
 }

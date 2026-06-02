@@ -4,22 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
-import dynamic from "next/dynamic";
-import { buildPokerTableUiState } from "@/features/tables/build-poker-table-ui-state";
+import { PokerTableSvgView } from "@/features/tables/poker-table-svg-view";
 import type { PokerTableBridge } from "@/features/tables/poker-table-ui-types";
-
-/** Phaser touches `navigator` at import time — must not load during SSR. */
-const PokerGameCanvas = dynamic(
-  () => import("@/features/tables/poker-game-canvas").then((m) => m.PokerGameCanvas),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex h-full w-full min-h-0 items-center justify-center bg-[#140608]">
-        <div className="h-10 w-32 animate-pulse rounded-lg bg-zinc-800/80" aria-hidden />
-      </div>
-    ),
-  },
-);
 import { useTableSocket } from "@/features/tables/use-table-socket";
 import { apiBase } from "@/lib/dev-api";
 import {
@@ -32,7 +18,7 @@ import {
 } from "@/lib/lobby/api-tables";
 import { useAuthUserId } from "@/providers/auth-context";
 
-type TablePhaserHostProps = {
+type TableGameHostProps = {
   data: TableDetailApi;
   live: boolean;
   liveReady: boolean;
@@ -46,7 +32,7 @@ type TablePhaserHostProps = {
   onCloseTable: () => void;
 };
 
-function TablePhaserHost({
+function TableGameHost({
   data,
   live,
   liveReady,
@@ -58,24 +44,8 @@ function TablePhaserHost({
   onTableAction,
   onLeaveSeat,
   onCloseTable,
-}: TablePhaserHostProps) {
+}: TableGameHostProps) {
   const router = useRouter();
-
-  const getUiState = useCallback(
-    (width: number, height: number) =>
-      buildPokerTableUiState(
-        data,
-        { width, height },
-        {
-          live,
-          liveReady,
-          sitPendingSeat,
-          viewerUserId,
-          defaultRaiseTo,
-        },
-      ),
-    [data, live, liveReady, sitPendingSeat, viewerUserId, defaultRaiseTo],
-  );
 
   const bridge = useMemo<PokerTableBridge>(
     () => ({
@@ -96,9 +66,15 @@ function TablePhaserHost({
   );
 
   return (
-    <div className="fixed inset-0 box-border h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-black pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-      <PokerGameCanvas bridge={bridge} getUiState={getUiState} className="h-full w-full min-h-0" />
-    </div>
+    <PokerTableSvgView
+      data={data}
+      live={live}
+      liveReady={liveReady}
+      sitPendingSeat={sitPendingSeat}
+      defaultRaiseTo={defaultRaiseTo}
+      viewerUserId={viewerUserId}
+      bridge={bridge}
+    />
   );
 }
 
@@ -244,7 +220,7 @@ export function TableDetailView({ tableId }: { tableId: string }) {
   }
 
   return (
-    <TablePhaserHost
+    <TableGameHost
       data={data}
       live={live}
       liveReady={liveReady}

@@ -18,8 +18,10 @@ export interface PokerSeatUi {
   isButton: boolean;
   isSb: boolean;
   isBb: boolean;
-  /** Only for hero when seated */
+  /** Only for hero when seated (live hand). */
   holeCards: [string, string] | null;
+  /** Shown when the hand is over (showdown / winners); from server `revealedHoles`. */
+  revealedHoleCards: [string, string] | null;
 }
 
 export interface PokerTableUiState {
@@ -33,6 +35,8 @@ export interface PokerTableUiState {
   streetLabel: string | null;
   phase: string | null;
   pot: number;
+  /** Chips in the middle during play; after award equals `awardedPot` (see engine). */
+  potDisplay: number;
   board: string[];
   viewerSeatIndex: number | null;
   viewerUserId: string | null;
@@ -62,6 +66,8 @@ export interface PokerTableUiState {
   inHand: boolean;
   /** Show face-down hole cards for other seated players (in hand). */
   showHoleBacksForOthers: boolean;
+  /** Pot distribution after the hand; null while playing. */
+  payouts: { seatIndex: number; userId: string; amount: number }[] | null;
 }
 
 export type PokerNavigateTarget = "lobby" | "tables" | "play" | "settings";

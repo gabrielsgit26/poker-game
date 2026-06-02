@@ -61,3 +61,69 @@ html[data-table-theme="gold-room"] body {
     ),
     var(--background);
 }
+
+/* Poker table SVG — chip flights (bet → pot, pot → winners) */
+@keyframes poker-chip-fly {
+  from {
+    left: var(--from-x);
+    top: var(--from-y);
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    left: var(--to-x);
+    top: var(--to-y);
+    opacity: 0.9;
+    transform: translate(-50%, -50%) scale(0.82);
+  }
+}
+
+.poker-chip-flight {
+  position: absolute;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  pointer-events: none;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  animation: poker-chip-fly 0.52s cubic-bezier(0.22, 0.92, 0.28, 1) forwards;
+}
+
+/* Community cards — deal from center (new cards only, staggered). */
+@keyframes poker-board-card-deal {
+  from {
+    opacity: 0;
+    transform: translate(0, 5px) scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+.poker-board-card-deal {
+  animation: poker-board-card-deal 0.48s cubic-bezier(0.32, 1.12, 0.48, 1) both;
+  transform-box: fill-box;
+  transform-origin: center center;
+}
+
+/* Hero / seat hole cards — staggered deal-in. */
+@keyframes poker-hole-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.68) rotate(-5deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+}
+
+.poker-hole-deal-wrap .poker-hole-deal-item {
+  animation: poker-hole-pop 0.5s cubic-bezier(0.32, 1.12, 0.48, 1) both;
+}
+
+.poker-hole-deal-wrap .poker-hole-deal-item:nth-child(2) {
+  animation-delay: 100ms;
+}
