@@ -32,10 +32,12 @@ export function buildPokerTableUiState(
     const uid = row?.userId ?? null;
     const h = holdem?.seats[String(i)];
     const rev = holdem?.revealedHoles?.[String(i)] as [string, string] | undefined;
+    /** Seated but not in engine hand (e.g. busted / sitting out) → show 0; server also sends shell rows. */
+    const stack = h != null ? h.stack : uid != null && holdem != null ? 0 : null;
     seatUis.push({
       seatIndex: i,
       userId: uid,
-      stack: h ? h.stack : null,
+      stack,
       streetPut: h?.streetPut ?? 0,
       folded: h?.folded ?? false,
       isButton: holdem ? holdem.buttonSeat === i : false,
@@ -49,16 +51,30 @@ export function buildPokerTableUiState(
 
   const holdemBetting = holdem?.phase === "betting";
   const useEngineActions = Boolean(holdemBetting);
-  const isViewerTurn =
-    viewerSeatIndex !== null &&
-    turn.actionSeatIndex !== null &&
-    turn.actionSeatIndex === viewerSeatIndex &&
-    table.players >= 2;
 
   const mySeat = viewerSeatIndex !== null && holdem ? holdem.seats[String(viewerSeatIndex)] : null;
   const maxB = holdem ? holdem.maxStreetBet : 0;
   const callAmount =
     mySeat && holdem ? Math.max(0, maxB - mySeat.streetPut) : 0;
+
+  /** Prefer engine `toActSeat` so UI matches server (stale `actionTurn` broke all-in runouts). */
+  const engineActSeat =
+    holdem && holdem.phase === "betting" && holdem.toActSeat != null ? holdem.toActSeat : null;
+  const activeSeatIndex =
+    engineActSeat != null ? engineActSeat : holdem == null ? turn.actionSeatIndex : null;
+  const facingBet =
+    holdem && holdem.phase === "betting" && viewerSeatIndex !== null
+      ? callAmount > 0
+      : turn.facingBet;
+
+  const isViewerTurn =
+    viewerSeatIndex !== null &&
+    table.players >= 2 &&
+    (engineActSeat != null
+      ? engineActSeat === viewerSeatIndex
+      : holdem == null &&
+        turn.actionSeatIndex !== null &&
+        turn.actionSeatIndex === viewerSeatIndex);
 
   const capStack = mySeat ? mySeat.streetPut + mySeat.stack : table.bigBlind;
   let raisePanelMin = Math.max(table.bigBlind, 1);
@@ -79,7 +95,7 @@ export function buildPokerTableUiState(
   const allowed: PokerAllowedAction[] = [];
   if (socketReady && isViewerTurn && holdem && useEngineActions) {
     allowed.push({ id: "fold", label: "Fold" });
-    if (!turn.facingBet) {
+    if (!facingBet) {
       allowed.push({ id: "check", label: "Check" });
       if (holdem.maxStreetBet === 0 && mySeat && mySeat.stack > 0) {
         allowed.push({
@@ -115,7 +131,7 @@ export function buildPokerTableUiState(
     }
   } else if (socketReady && isViewerTurn && !useEngineActions) {
     allowed.push({ id: "fold", label: "Fold" });
-    if (!turn.facingBet) allowed.push({ id: "check", label: "Check" });
+    if (!facingBet) allowed.push({ id: "check", label: "Check" });
   }
 
   let banner: string | null = null;
@@ -124,8 +140,8 @@ export function buildPokerTableUiState(
   else if (isViewerTurn && opts.live && !opts.liveReady && holdem && useEngineActions) {
     banner = "Connecting to live table…";
   } else if (isViewerTurn && socketReady) banner = "Your turn";
-  else if (turn.actionSeatIndex !== null && table.players >= 2)
-    banner = `Seat ${turn.actionSeatIndex + 1} to act`;
+  else if (activeSeatIndex !== null && table.players >= 2)
+    banner = `Seat ${activeSeatIndex + 1} to act`;
 
   const inHand = Boolean(holdem && holdem.phase !== "complete");
   const showHoleBacksForOthers = Boolean(
@@ -166,10 +182,10 @@ export function buildPokerTableUiState(
     viewerSeatIndex,
     viewerUserId: opts.viewerUserId,
     seats: seatUis,
-    activeSeatIndex: turn.actionSeatIndex,
+    activeSeatIndex,
     isViewerTurn,
     useEngineActions,
-    facingBet: turn.facingBet,
+    facingBet,
     callAmount,
     minRaise: holdem?.minRaise ?? table.bigBlind,
     bigBlind: table.bigBlind,

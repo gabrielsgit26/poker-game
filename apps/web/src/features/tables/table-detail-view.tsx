@@ -150,6 +150,7 @@ export function TableDetailView({ tableId }: { tableId: string }) {
     const myHoldemSeat = holdem.seats[String(viewerSeatIndex)];
     if (!myHoldemSeat) return bb * 2;
     const cap = myHoldemSeat.streetPut + myHoldemSeat.stack;
+    if (cap <= 0) return Math.max(bb * 2, 20);
     const floor = Math.max(
       holdem.maxStreetBet + holdem.minRaise,
       myHoldemSeat.streetPut + 1,

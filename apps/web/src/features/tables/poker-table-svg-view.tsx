@@ -55,6 +55,51 @@ function isRedSuit(code: string): boolean {
   return s === "h" || s === "d";
 }
 
+/** Visual chip count in the center pile (log-scaled vs pot; capped for perf). */
+function potChipDiscCount(pot: number, bigBlind: number): number {
+  if (pot <= 0) return 0;
+  const bb = Math.max(1, bigBlind);
+  const ratio = pot / bb;
+  return Math.min(58, Math.max(4, Math.round(4 + Math.log2(ratio + 1) * 6 + Math.sqrt(pot / (bb * 2)) * 3)));
+}
+
+/** Stacked chips at felt center — reflects live `pot` during play; clears when hand completes (payout flight carries the story). */
+function PotChipPile({ pot, bigBlind }: { pot: number; bigBlind: number }) {
+  const n = potChipDiscCount(pot, bigBlind);
+  const ring = 9;
+  return (
+    <div
+      className="pointer-events-none absolute left-1/2 top-[41%] -translate-x-1/2 -translate-y-1/2"
+      style={{ width: "5rem", height: "4.25rem" }}
+      aria-hidden
+    >
+      {Array.from({ length: n }, (_, i) => {
+        const layer = Math.floor(i / ring);
+        const slot = i % ring;
+        const ang = (slot / ring) * Math.PI * 2 + layer * 0.4;
+        const rad = 2.2 + layer * 2.6 + slot * 0.12;
+        const x = Math.cos(ang) * rad;
+        const y = Math.sin(ang) * rad * 0.58;
+        return (
+          <div
+            key={i}
+            className="absolute rounded-full border border-black/35 shadow-[0_1px_2px_rgba(0,0,0,0.45)]"
+            style={{
+              width: "clamp(7px,2.15vw,11px)",
+              height: "clamp(7px,2.15vw,11px)",
+              left: `calc(50% + ${x}px - clamp(3.5px,1.07vw,5.5px))`,
+              top: `calc(50% + ${y}px - clamp(3.5px,1.07vw,5.5px))`,
+              transform: `rotate(${layer * 9 + slot * 5}deg)`,
+              background: `linear-gradient(145deg,hsl(${32 + (i % 8) * 5} 80% 54%),hsl(${32 + (i % 8) * 5} 86% 30%))`,
+              zIndex: i,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 function MiniCard({
   code,
   faceDown,
@@ -108,6 +153,9 @@ export function PokerTableSvgView({
 }: PokerTableSvgViewProps) {
   const feltGradId = useId().replace(/:/g, "");
   const wrapRef = useRef<HTMLDivElement>(null);
+  /** Latest table payload for deferred blind flights (holdem can lag one frame behind handSeq). */
+  const tableDataRef = useRef(data);
+  tableDataRef.current = data;
   const [dims, setDims] = useState({ width: 360, height: 520 });
 
   useLayoutEffect(() => {
@@ -137,6 +185,9 @@ export function PokerTableSvgView({
       }),
     [data, dims, live, liveReady, sitPendingSeat, viewerUserId, defaultRaiseTo],
   );
+
+  const latestUiPotRef = useRef(ui.pot);
+  latestUiPotRef.current = ui.pot;
 
   const [raiseOpen, setRaiseOpen] = useState(false);
   const [raiseMode, setRaiseMode] = useState<"raise_to" | "bet">("raise_to");
@@ -217,10 +268,14 @@ export function PokerTableSvgView({
   };
 
   const [chipParticles, setChipParticles] = useState<ChipParticle[]>([]);
+  /** Chips shown in the center pile — only after they “arrive” from seats (not full server pot at hand start). */
+  const [visualPotForPile, setVisualPotForPile] = useState(0);
   const prevStreetPutsRef = useRef<number[] | null>(null);
   const prevPhaseRef = useRef<string | null>(null);
   const prevHandSeqRef = useRef<number | null>(null);
   const chipSeqRef = useRef(0);
+  /** Prevents duplicate blind chip bursts when multiple deferred retries overlap. */
+  const blindIntroDoneForHandSeqRef = useRef<number | null>(null);
 
   useEffect(() => {
     const handSeq = ui.handSeq;
@@ -229,10 +284,82 @@ export function PokerTableSvgView({
     const n = ui.maxPlayers;
     const bb = Math.max(1, data.table.bigBlind);
 
+    const pushBetBurst = (arr: ChipParticle[], from: { x: number; y: number }, betSize: number) => {
+      const scale = betSize / bb;
+      const count = Math.min(12, Math.max(3, Math.round(2 + Math.log2(scale + 1) * 2)));
+      for (let k = 0; k < count; k++) {
+        chipSeqRef.current += 1;
+        const jitterX = (Math.random() - 0.5) * 0.035;
+        const jitterY = (Math.random() - 0.5) * 0.035;
+        arr.push({
+          id: `bet-${chipSeqRef.current}-${k}-${arr.length}`,
+          from: { x: from.x + jitterX * 0.4, y: from.y + jitterY * 0.4 },
+          to: {
+            x: POT_NORM.x + (Math.random() - 0.5) * 0.028,
+            y: POT_NORM.y + (Math.random() - 0.5) * 0.022,
+          },
+          staggerMs: k * 26,
+          hue: 36 + Math.floor(Math.random() * 22),
+        });
+      }
+    };
+
     if (prevHandSeqRef.current !== handSeq) {
+      const hadPriorHand = prevHandSeqRef.current !== null;
       prevHandSeqRef.current = handSeq;
       prevStreetPutsRef.current = seats.map((s) => s.streetPut);
       prevPhaseRef.current = phase;
+      setVisualPotForPile(0);
+
+      const nMax = Math.max(2, Math.min(9, data.table.maxPlayers));
+      const attemptBlindFlights = (attempt: number) => {
+        if (blindIntroDoneForHandSeqRef.current === handSeq) return;
+
+        const d = tableDataRef.current;
+        const h = d.holdem;
+
+        if (attempt >= 15) {
+          if (blindIntroDoneForHandSeqRef.current === handSeq) return;
+          blindIntroDoneForHandSeqRef.current = handSeq;
+          const h2 = tableDataRef.current.holdem;
+          const pot =
+            h2 && h2.handSeq === handSeq && h2.phase === "betting" ? h2.pot : latestUiPotRef.current;
+          setVisualPotForPile(pot);
+          return;
+        }
+
+        if (!h || h.handSeq !== handSeq || h.phase !== "betting") {
+          window.setTimeout(() => attemptBlindFlights(attempt + 1), 45);
+          return;
+        }
+
+        /** Join mid-hand (past preflop): show pot pile immediately — no blind replay. */
+        if (!hadPriorHand && (h.board.length > 0 || h.street !== "preflop")) {
+          blindIntroDoneForHandSeqRef.current = handSeq;
+          setVisualPotForPile(h.pot);
+          return;
+        }
+
+        const blindSpawn: ChipParticle[] = [];
+        const sbPut = h.seats[String(h.sbSeat)]?.streetPut ?? 0;
+        const bbPut = h.seats[String(h.bbSeat)]?.streetPut ?? 0;
+        if (sbPut > 0) pushBetBurst(blindSpawn, seatNorm(h.sbSeat, nMax), sbPut);
+        if (bbPut > 0) pushBetBurst(blindSpawn, seatNorm(h.bbSeat, nMax), bbPut);
+
+        if (!blindSpawn.length) {
+          window.setTimeout(() => attemptBlindFlights(attempt + 1), 45);
+          return;
+        }
+
+        blindIntroDoneForHandSeqRef.current = handSeq;
+        const potSnap = h.pot;
+        setChipParticles((p) => [...p, ...blindSpawn]);
+        const rm = new Set(blindSpawn.map((s) => s.id));
+        window.setTimeout(() => setChipParticles((p) => p.filter((x) => !rm.has(x.id))), 680);
+        window.setTimeout(() => setVisualPotForPile(potSnap), 520);
+      };
+
+      attemptBlindFlights(0);
       return;
     }
 
@@ -245,39 +372,29 @@ export function PokerTableSvgView({
     const prevStreet = prevStreetPutsRef.current;
     const prevPhase = prevPhaseRef.current;
     const spawned: ChipParticle[] = [];
-
-    const pushBetBurst = (from: { x: number; y: number }, betSize: number) => {
-      const scale = betSize / bb;
-      const count = Math.min(12, Math.max(3, Math.round(2 + Math.log2(scale + 1) * 2)));
-      for (let k = 0; k < count; k++) {
-        chipSeqRef.current += 1;
-        const jitterX = (Math.random() - 0.5) * 0.035;
-        const jitterY = (Math.random() - 0.5) * 0.035;
-        spawned.push({
-          id: `bet-${chipSeqRef.current}-${k}`,
-          from: { x: from.x + jitterX * 0.4, y: from.y + jitterY * 0.4 },
-          to: {
-            x: POT_NORM.x + (Math.random() - 0.5) * 0.028,
-            y: POT_NORM.y + (Math.random() - 0.5) * 0.022,
-          },
-          staggerMs: k * 26,
-          hue: 36 + Math.floor(Math.random() * 22),
-        });
-      }
-    };
+    let addedToPot = 0;
 
     if (phase === "betting") {
       for (let i = 0; i < seats.length; i++) {
         const delta = seats[i]!.streetPut - (prevStreet[i] ?? 0);
-        if (delta > 0 && seats[i]!.userId) pushBetBurst(seatNorm(i, n), delta);
+        if (delta > 0 && seats[i]!.userId) {
+          pushBetBurst(spawned, seatNorm(i, n), delta);
+          addedToPot += delta;
+        }
       }
     }
 
     if (phase === "complete" && prevPhase !== "complete" && ui.payouts && ui.payouts.length > 0) {
+      setVisualPotForPile(0);
+      const totalPay = ui.payouts.reduce((a, p) => a + p.amount, 0);
       for (const pay of ui.payouts) {
         const to = seatNorm(pay.seatIndex, n);
+        const share = totalPay > 0 ? pay.amount / totalPay : 1 / ui.payouts.length;
         const scale = Math.max(1, pay.amount / bb);
-        const count = Math.min(16, Math.max(4, Math.round(3 + Math.log2(scale + 1) * 2.5)));
+        const count = Math.min(
+          22,
+          Math.max(5, Math.round((3 + Math.log2(scale + 1) * 2.5) * (0.55 + share))),
+        );
         for (let k = 0; k < count; k++) {
           chipSeqRef.current += 1;
           spawned.push({
@@ -300,6 +417,13 @@ export function PokerTableSvgView({
     prevStreetPutsRef.current = seats.map((s) => s.streetPut);
     prevPhaseRef.current = phase;
 
+    if (addedToPot > 0) {
+      const snapPot = ui.pot;
+      window.setTimeout(() => {
+        setVisualPotForPile((v) => Math.min(v + addedToPot, snapPot));
+      }, 520);
+    }
+
     if (!spawned.length) return;
 
     const removeIds = new Set(spawned.map((s) => s.id));
@@ -307,7 +431,17 @@ export function PokerTableSvgView({
     window.setTimeout(() => {
       setChipParticles((prev) => prev.filter((p) => !removeIds.has(p.id)));
     }, 680);
-  }, [ui.handSeq, ui.phase, ui.seats, ui.maxPlayers, ui.payouts, data.table.bigBlind]);
+  }, [
+    ui.handSeq,
+    ui.phase,
+    ui.seats,
+    ui.maxPlayers,
+    ui.payouts,
+    ui.pot,
+    data.table.bigBlind,
+    data.table.maxPlayers,
+    data.holdem,
+  ]);
 
   /** New community cards this street → staggered SVG deal animation. */
   const [boardDealFromIdx, setBoardDealFromIdx] = useState<number | null>(null);
@@ -438,8 +572,12 @@ export function PokerTableSvgView({
         <p className="shrink-0 bg-black/30 px-2 py-1 text-center text-[11px] text-amber-100/90">{ui.banner}</p>
       ) : null}
 
-      {/* Table area: SVG felt + HTML seats — slice fills width/height (no thin “letterbox” felt). */}
-      <div ref={wrapRef} className="relative min-h-0 flex-1 w-full min-w-0">
+      {/* Table: fills space between header/footer; felt size scales with dvh/dvw + safe areas. */}
+      <div className="flex min-h-0 min-w-0 flex-1 items-stretch justify-center px-0.5">
+        <div
+          ref={wrapRef}
+          className="relative aspect-[10/16] h-full min-h-0 w-auto min-w-[180px] max-w-[min(96dvw,100%)] max-h-[min(calc(100dvh-10.25rem-env(safe-area-inset-top)-env(safe-area-inset-bottom)),calc(96dvw*16/10))] self-center"
+        >
         <svg
           className="pointer-events-none absolute inset-0 h-full w-full"
           viewBox="0 0 100 100"
@@ -509,6 +647,13 @@ export function PokerTableSvgView({
             {ui.streetLabel ?? ""}
           </text>
         </svg>
+
+        <div className="pointer-events-none absolute inset-0 z-[4] overflow-visible" aria-hidden>
+          <PotChipPile
+            pot={ui.phase === "complete" ? 0 : Math.min(visualPotForPile, ui.pot)}
+            bigBlind={data.table.bigBlind}
+          />
+        </div>
 
         <div className="pointer-events-none absolute inset-0 z-[5] overflow-hidden" aria-hidden>
           {chipParticles.map((c) => (
@@ -643,6 +788,9 @@ export function PokerTableSvgView({
               <p className="text-center text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-300/95">
                 Hand complete
               </p>
+              {ui.payouts!.length > 1 ? (
+                <p className="mt-1 text-center text-[9px] text-zinc-400">Split pot — same winning hand</p>
+              ) : null}
               <div className="mt-2 space-y-1.5">
                 {ui.payouts!.map((p) => (
                   <div
@@ -697,6 +845,7 @@ export function PokerTableSvgView({
             </div>
           </div>
         ) : null}
+        </div>
       </div>
 
       {/* Action bar */}

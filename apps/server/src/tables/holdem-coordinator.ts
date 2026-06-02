@@ -125,15 +125,19 @@ export class HoldemCoordinator {
     const prev = await this.readState(tableId);
     if (prev && prev.phase === 'betting') return false;
 
-    const occupied = seats.map((x) => x.seatIndex);
-    const btn = await this.readButtonSeat(tableId, occupied);
     const handSeq = (prev?.handSeq ?? 0) + 1;
 
+    /**
+     * Carry exact stacks from the completed hand. Do not bump busted (0) players to minBuyIn —
+     * that kept them in the engine with phantom chips so payouts could credit the wrong profile
+     * vs who actually contested the pot. New seat since last hand (no prior row) gets minBuyIn.
+     */
     const seatConfigs = seats.map((row) => {
       let stack = t.minBuyIn;
       if (prev?.phase === 'complete') {
         const old = prev.players.find((p) => p.userId === row.userId);
-        if (old) stack = Math.max(t.minBuyIn, old.stack);
+        if (old) stack = old.stack;
+        else stack = t.minBuyIn;
       }
       return {
         seatIndex: row.seatIndex,
@@ -142,15 +146,23 @@ export class HoldemCoordinator {
       };
     });
 
+    const playingConfigs = seatConfigs.filter((c) => c.stack > 0);
+    if (playingConfigs.length < 2) {
+      return false;
+    }
+
+    const occupiedPlaying = playingConfigs.map((c) => c.seatIndex);
+    const btn = await this.readButtonSeat(tableId, occupiedPlaying);
+
     const st = startHoldemHand({
-      seats: seatConfigs,
+      seats: playingConfigs,
       buttonSeat: btn,
       smallBlind: t.smallBlind,
       bigBlind: t.bigBlind,
       handSeq,
     });
     await this.writeState(tableId, st);
-    const nextBtn = nextButtonSeat(occupied, btn);
+    const nextBtn = nextButtonSeat(occupiedPlaying, btn);
     await this.writeButtonSeat(tableId, nextBtn);
     void this.tablesService.pingBroadcast(tableId);
     return true;

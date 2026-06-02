@@ -128,6 +128,34 @@ function lobbyPlayStatus(
   return 'WAITING';
 }
 
+/**
+ * The engine only includes players dealt into the current hand. Seated users who are sitting
+ * out (e.g. zero chips) have no `holdem.seats` row — clients would show a blank stack. Fill
+ * those seats with a neutral shell so chip totals stay in sync with who is actually in the hand.
+ */
+function withHoldemShellSeatsForOccupied(
+  holdem: HoldemPublicSnapshot | null,
+  seats: TableSeatRow[],
+): HoldemPublicSnapshot | null {
+  if (!holdem) return null;
+  let added = false;
+  const nextSeats: HoldemPublicSnapshot['seats'] = { ...holdem.seats };
+  for (const s of seats) {
+    if (s.userId == null) continue;
+    const k = String(s.seatIndex);
+    if (nextSeats[k] === undefined) {
+      nextSeats[k] = {
+        stack: 0,
+        folded: false,
+        streetPut: 0,
+        handInvested: 0,
+      };
+      added = true;
+    }
+  }
+  return added ? { ...holdem, seats: nextSeats } : holdem;
+}
+
 /** Next occupied seat clockwise (ascending indices, wrap to lowest). */
 function nextOccupiedSeatClockwise(
   occupiedSortedAsc: readonly number[],
@@ -341,13 +369,21 @@ export class TablesService implements OnModuleInit, OnModuleDestroy {
 
   private async getActionTurnSnapshot(tableId: string): Promise<TableActionTurnDto> {
     const holdemSnap = await this.holdem.getPublicSnapshot(tableId);
-    if (holdemSnap && holdemSnap.phase === 'betting' && holdemSnap.toActSeat !== null) {
-      const row = holdemSnap.seats[String(holdemSnap.toActSeat)];
-      const toCall = holdemSnap.maxStreetBet - (row?.streetPut ?? 0);
-      return {
-        actionSeatIndex: holdemSnap.toActSeat,
-        facingBet: toCall > 0,
-      };
+    if (holdemSnap && holdemSnap.phase === 'betting') {
+      if (holdemSnap.toActSeat !== null) {
+        const row = holdemSnap.seats[String(holdemSnap.toActSeat)];
+        const toCall = holdemSnap.maxStreetBet - (row?.streetPut ?? 0);
+        return {
+          actionSeatIndex: holdemSnap.toActSeat,
+          facingBet: toCall > 0,
+        };
+      }
+      // Engine has no actor (e.g. all-in runout) — clear stale Redis turn so UI doesn't assign a fake seat.
+      const cur = await this.readActionTurn(tableId);
+      if (cur?.actionSeatIndex != null) {
+        await this.writeActionTurn(tableId, { actionSeatIndex: null, facingBet: false });
+      }
+      return { actionSeatIndex: null, facingBet: false };
     }
     if (holdemSnap && holdemSnap.phase !== 'betting') {
       return { actionSeatIndex: null, facingBet: false };
@@ -788,7 +824,10 @@ export class TablesService implements OnModuleInit, OnModuleDestroy {
     const turnDeadlineEpochMs = await this.readTurnDeadlineEpochMs(tableId);
     const lastAction = await this.readLastAction(tableId);
     const actionTurn = await this.getActionTurnSnapshot(tableId);
-    const holdem = await this.holdem.getPublicSnapshot(tableId);
+    const holdem = withHoldemShellSeatsForOccupied(
+      await this.holdem.getPublicSnapshot(tableId),
+      seats,
+    );
     return { table, seats, turnDeadlineEpochMs, lastAction, actionTurn, holdem };
   }
 
@@ -899,7 +938,10 @@ export class TablesService implements OnModuleInit, OnModuleDestroy {
     const turnDeadlineEpochMs = await this.readTurnDeadlineEpochMs(tableId);
     const lastAction = await this.readLastAction(tableId);
     const actionTurn = await this.getActionTurnSnapshot(tableId);
-    const holdem = await this.holdem.getPublicSnapshot(tableId);
+    const holdem = withHoldemShellSeatsForOccupied(
+      await this.holdem.getPublicSnapshot(tableId),
+      seats,
+    );
     let viewerHoleCards: [string, string] | null = null;
     if (viewerSeatIndex !== null && holdem && holdem.phase !== 'complete') {
       viewerHoleCards = await this.holdem.getViewerHoleCards(tableId, userId);

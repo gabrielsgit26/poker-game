@@ -148,15 +148,13 @@ function computeNextToAct(s: HoldemState): number | null {
 
   const maxB = maxStreetBetOf(s);
   const n = s.order.length;
-  const sbIdx = s.order.indexOf(s.sbSeat);
-  const oweStartIdx = sbIdx >= 0 ? sbIdx : 0;
 
-  // 1) partial / full calls: start left of BB preflop from SB; postflop from first active after button
-  const oweStart =
-    s.street === "preflop"
-      ? oweStartIdx
-      : s.order.indexOf(firstPostflopActorSeat(s));
-  const o0 = oweStart >= 0 ? oweStart : 0;
+  // 1) Partial/full calls to match current max: walk in real action order.
+  // Preflop starts UTG (seat left of BB); HU = BTN first. Postflop = first active left of button.
+  const firstForOwe =
+    s.street === "preflop" ? firstPreflopActorSeat(s) : firstPostflopActorSeat(s);
+  const oweIdx = s.order.indexOf(firstForOwe);
+  const o0 = oweIdx >= 0 ? oweIdx : 0;
   for (let step = 0; step < n; step++) {
     const seat = s.order[(o0 + step) % n]!;
     const p = bySeat(s.players, seat);
@@ -228,6 +226,17 @@ function advanceStreetOrFinish(s: HoldemState): void {
   s.toActSeat = computeNextToAct(s);
 }
 
+/**
+ * After an action or street change: if nobody can bet (e.g. everyone all-in),
+ * keep advancing streets until someone can act or the hand ends.
+ */
+function settleBettingWhenNoActor(s: HoldemState): void {
+  s.toActSeat = computeNextToAct(s);
+  while (s.phase === "betting" && s.toActSeat === null) {
+    advanceStreetOrFinish(s);
+  }
+}
+
 function showdown(s: HoldemState): void {
   s.phase = "showdown";
   s.toActSeat = null;
@@ -253,6 +262,7 @@ function showdown(s: HoldemState): void {
     return;
   }
 
+  /** Best 5-card hand; ties → multiple winners, pot split evenly (+1 chip to low seat indices until remainder gone). */
   let best: number[] | null = null;
   const winners: HoldemPlayerState[] = [];
   for (const p of contenders) {
@@ -318,8 +328,12 @@ export function startHoldemHand(input: {
   const order = [...seats.slice(btnIdx), ...seats.slice(0, btnIdx)].map((s) => s.seatIndex);
 
   const n = order.length;
-  const sbSeat = order[1 % n]!;
-  const bbSeat = order[2 % n]!;
+  /**
+   * Heads-up: dealer posts SB, other posts BB (order[0] is always the button).
+   * 3+: SB = seat left of button, BB = next seat clockwise in `order`.
+   */
+  const sbSeat = n === 2 ? order[0]! : order[1 % n]!;
+  const bbSeat = n === 2 ? order[1]! : order[2 % n]!;
 
   const deck = shuffle(fullDeck(), rng);
   const players: HoldemPlayerState[] = seats.map((sc) => ({
@@ -368,7 +382,7 @@ export function startHoldemHand(input: {
   };
 
   postBlinds(s);
-  s.toActSeat = computeNextToAct(s);
+  settleBettingWhenNoActor(s);
   return s;
 }
 
@@ -501,13 +515,7 @@ export function applyHoldemAction(
     s.maxStreetBet = maxStreetBetOf(s);
   }
 
-  s.toActSeat = computeNextToAct(s);
-  if (s.toActSeat === null) {
-    advanceStreetOrFinish(s);
-    if (s.phase === "betting" && s.toActSeat === null) {
-      s.toActSeat = computeNextToAct(s);
-    }
-  }
+  settleBettingWhenNoActor(s);
 
   return { ok: true };
 }
@@ -519,13 +527,7 @@ export function forceFoldPlayer(s: HoldemState, seatIndex: number): void {
   p.folded = true;
   p.respondedBetVersion = s.betVersion;
   p.checkedPassStreet = true;
-  s.toActSeat = computeNextToAct(s);
-  if (s.toActSeat === null) {
-    advanceStreetOrFinish(s);
-    if (s.phase === "betting" && s.toActSeat === null) {
-      s.toActSeat = computeNextToAct(s);
-    }
-  }
+  settleBettingWhenNoActor(s);
 }
 
 /** Next button seat among occupied seat indices (ascending wrap). */
