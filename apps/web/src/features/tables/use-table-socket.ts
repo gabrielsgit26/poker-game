@@ -63,7 +63,14 @@ export function useTableSocket(
   const emitGameAction = useCallback((action: HoldemGameActionPayload) => {
     const tid = tableIdRef.current;
     const socket = socketRef.current;
-    if (!tid || !socket?.connected) return;
+    if (!tid) return;
+    if (!socket?.connected) {
+      console.warn(
+        "[table socket] gameAction skipped: socket not connected yet (wait for Live).",
+        action,
+      );
+      return;
+    }
     socket.emit(
       "gameAction",
       { tableId: tid, action },
@@ -78,7 +85,14 @@ export function useTableSocket(
   const emitTableAction = useCallback((action: TableSocketActionApi) => {
     const tid = tableIdRef.current;
     const socket = socketRef.current;
-    if (!tid || !socket?.connected) return;
+    if (!tid) return;
+    if (!socket?.connected) {
+      console.warn(
+        "[table socket] tableAction skipped: socket not connected yet (wait for Live).",
+        action,
+      );
+      return;
+    }
     socket.emit(
       "tableAction",
       { tableId: tid, action },

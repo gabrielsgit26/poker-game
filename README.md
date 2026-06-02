@@ -6,7 +6,7 @@ Monorepo aligned with `telegram_poker_platform_development_plan.md`.
 
 | Path | Purpose |
 |------|---------|
-| `apps/web` | Next.js — lobby, **`/play`**, profile, settings, **`/clubs/*`**, **`/tables/*`**, Socket.IO client on table detail (Phase 8), TanStack Query, `src/lib/poker-engine` |
+| `apps/web` | Next.js — lobby, **`/play`** (offline HU runout lab), **`/tables/*`** (**PixiJS** live felt + HTML actions), **`/clubs/*`**, Socket.IO, TanStack Query |
 | `apps/server` | NestJS — **`GET /health`**, **`/auth/*`**, **`/clubs`**, **`/tables`**, **Socket.IO** (table rooms, `tableState` / `tableClosed`) |
 | `packages/shared` | Shared types and **`@telegram-poker/shared/poker-engine`** (NL hold’em: deck, streets, pot, showdown) |
 

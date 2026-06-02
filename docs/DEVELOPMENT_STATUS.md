@@ -15,7 +15,7 @@ This file tracks **MVP roadmap phases** (plan §12). “Done” means good enoug
 | **9** | Wallet / credits | **Not started** | Plan §12 Phase 9. |
 | **10** | Dashboards | **Not started** | Club manager + admin (plan §6.7–6.8, §12 Phase 10). |
 | **11** | Security / anti-cheat | **Partial** | Private club socket gate; **Todo:** rate limits, IP block, suspension, audit logs. |
-| **12** | Polish | **Partial** | Plan PixiJS / Framer / shadcn — incremental. |
+| **12** | Polish | **In progress** | **PixiJS** live table on `/tables/[tableId]` (felt, seats, board, pot, D, hero cards). Next: chip sprites, card flip animation, turn arc, Framer polish. |
 
 ## Recommended local env (auth + API proxy)
 

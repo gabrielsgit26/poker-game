@@ -1,14 +1,9 @@
-import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { MainShellLayoutClient } from "@/components/main-shell-layout-client";
 
 export default function MainShellLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div className="flex min-h-dvh flex-col">
-      <main className="flex-1 pb-28 pt-4">{children}</main>
-      <MobileBottomNav />
-    </div>
-  );
+  return <MainShellLayoutClient>{children}</MainShellLayoutClient>;
 }

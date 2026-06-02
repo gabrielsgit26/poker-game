@@ -37,6 +37,7 @@ export function TablesView() {
   const [name, setName] = useState("");
   const [sb, setSb] = useState(1);
   const [bb, setBb] = useState(2);
+  const [maxPlayers, setMaxPlayers] = useState(6);
 
   useEffect(() => {
     if (!joinedClubs.length) return;
@@ -52,6 +53,7 @@ export function TablesView() {
         name: name.trim(),
         smallBlind: sb,
         bigBlind: bb,
+        maxPlayers,
       }),
     onSuccess: (row) => {
       if (row) {
@@ -144,6 +146,20 @@ export function TablesView() {
                 />
               </label>
             </div>
+            <label className="block text-sm text-zinc-300">
+              Max players
+              <select
+                value={maxPlayers}
+                onChange={(e) => setMaxPlayers(Number(e.target.value))}
+                className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
+              >
+                {[2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
             {createMut.isError ? (
               <p className="text-xs text-rose-300">
                 Create failed — you may need manager rights on that club.

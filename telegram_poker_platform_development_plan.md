@@ -847,15 +847,22 @@ Show:
 
 ## 6.4 Poker Table Page
 
-Route:
+Route (canonical in this repo):
 
 ```txt
-/table/[tableId]
+/tables/[tableId]
 ```
 
-Purpose:
+> **Note:** The plan originally used `/table/[tableId]`. The Next.js App Router implementation uses **`/tables/[tableId]`** under `(main)` so table list and detail share the same segment. Product behaviour matches §6.4 (real-time game screen).
 
-Main real-time poker game screen.
+**Separate offline route (engine lab, not multiplayer):**
+
+```txt
+/play
+```
+
+Purpose of **`/play`**: quick **browser-only** heads-up runout (deal + evaluate) for demos and engine QA — **no** MongoDB, **no** Redis, **no** Socket.IO.  
+Purpose of **`/tables/[tableId]`**: **real club table** — HTTP + Socket.IO + Nest **`HoldemCoordinator`** + **PixiJS** felt (see §2.3 Game Rendering).
 
 ### Visual Style
 
@@ -871,22 +878,30 @@ Recommended style:
 
 ### Main Poker Elements
 
-Include:
+Include (implementation status in repo):
 
-- Oval table
-- 2–6 player seats
-- Player avatar
-- Player name
+- **PixiJS** oval felt + board cards + pot + seat stacks on **`/tables/[tableId]`** (WebGL canvas, resize-aware).
+- Oval table (via Pixi graphics)
+- 2–9 player seats (layout from `maxPlayers`)
+- Player name (truncated id in MVP)
 - Stack amount
-- Current bet amount
 - Dealer button
-- Small blind / big blind markers
-- Hole cards
+- Hole cards (viewer only)
 - Community cards
 - Pot amount
-- Side pot display
-- Turn countdown ring
-- Action buttons
+- Side pot display *(engine partial — UI TBD)*
+- Turn countdown ring *(HTML clock today; ring on canvas optional polish)*
+- Action buttons *(HTML below canvas)*
+
+### PixiJS delivery checklist
+
+```txt
+[ ] Chip stacks / sprites (currently numeric labels)
+[ ] Card sprites + flip animation
+[ ] Turn countdown arc on felt
+[ ] Side pot rows when engine supports full runout
+[ ] Destroy Pixi Application on route leave (implemented in HoldemPixiStage unmount)
+```
 
 ### Action Controls
 
