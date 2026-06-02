@@ -3,30 +3,26 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   Param,
   Patch,
   Post,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { ClubsService } from './clubs.service';
-
-function devUserId(header?: string): string {
-  const v = header?.trim();
-  return v && v.length > 0 ? v : 'local-player';
-}
 
 @Controller('clubs')
 export class ClubsController {
   constructor(private readonly clubsService: ClubsService) {}
 
   @Get()
-  list(@Headers('x-dev-user-id') xDevUserId?: string) {
-    return this.clubsService.listForUser(devUserId(xDevUserId));
+  list(@Req() req: Request) {
+    return this.clubsService.listForUser(req.pokerUserId);
   }
 
   @Post()
   create(
-    @Headers('x-dev-user-id') xDevUserId: string | undefined,
+    @Req() req: Request,
     @Body() body: { name?: string; isPrivate?: boolean },
   ) {
     const name = body?.name;
@@ -34,23 +30,20 @@ export class ClubsController {
       throw new BadRequestException('Field "name" is required.');
     }
     const isPrivate = Boolean(body?.isPrivate);
-    return this.clubsService.createClub(devUserId(xDevUserId), name, isPrivate);
+    return this.clubsService.createClub(req.pokerUserId, name, isPrivate);
   }
 
   /** List pending join requests (club OWNER / MANAGER only). */
   @Get(':clubId/join-requests')
-  joinRequests(
-    @Param('clubId') clubId: string,
-    @Headers('x-dev-user-id') xDevUserId?: string,
-  ) {
-    return this.clubsService.listJoinRequests(clubId, devUserId(xDevUserId));
+  joinRequests(@Param('clubId') clubId: string, @Req() req: Request) {
+    return this.clubsService.listJoinRequests(clubId, req.pokerUserId);
   }
 
   @Patch(':clubId/join-requests/:requestId')
   async decideRequest(
     @Param('clubId') clubId: string,
     @Param('requestId') requestId: string,
-    @Headers('x-dev-user-id') xDevUserId: string | undefined,
+    @Req() req: Request,
     @Body() body: { approve?: boolean },
   ) {
     if (typeof body?.approve !== 'boolean') {
@@ -59,25 +52,19 @@ export class ClubsController {
     await this.clubsService.decideJoinRequest(
       clubId,
       requestId,
-      devUserId(xDevUserId),
+      req.pokerUserId,
       body.approve,
     );
     return { ok: true };
   }
 
   @Post(':clubId/join')
-  joinClub(
-    @Param('clubId') clubId: string,
-    @Headers('x-dev-user-id') xDevUserId?: string,
-  ) {
-    return this.clubsService.joinClub(clubId, devUserId(xDevUserId));
+  joinClub(@Param('clubId') clubId: string, @Req() req: Request) {
+    return this.clubsService.joinClub(clubId, req.pokerUserId);
   }
 
   @Get(':clubId')
-  detail(
-    @Param('clubId') clubId: string,
-    @Headers('x-dev-user-id') xDevUserId?: string,
-  ) {
-    return this.clubsService.getDetail(clubId, devUserId(xDevUserId));
+  detail(@Param('clubId') clubId: string, @Req() req: Request) {
+    return this.clubsService.getDetail(clubId, req.pokerUserId);
   }
 }

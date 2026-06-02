@@ -3,16 +3,12 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   Param,
   Post,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { TablesService } from './tables.service';
-
-function devUserId(header?: string): string {
-  const v = header?.trim();
-  return v && v.length > 0 ? v : 'local-player';
-}
 
 @Controller('tables')
 export class TablesController {
@@ -25,7 +21,7 @@ export class TablesController {
 
   @Post()
   async create(
-    @Headers('x-dev-user-id') xDevUserId: string | undefined,
+    @Req() req: Request,
     @Body()
     body: {
       clubId?: string;
@@ -46,7 +42,7 @@ export class TablesController {
     if (typeof body?.smallBlind !== 'number' || typeof body?.bigBlind !== 'number') {
       throw new BadRequestException('Fields "smallBlind" and "bigBlind" are required.');
     }
-    return this.tablesService.createTable(devUserId(xDevUserId), body.clubId.trim(), {
+    return this.tablesService.createTable(req.pokerUserId, body.clubId.trim(), {
       name: body.name,
       smallBlind: body.smallBlind,
       bigBlind: body.bigBlind,
@@ -57,43 +53,30 @@ export class TablesController {
   }
 
   @Get(':tableId')
-  detail(
-    @Param('tableId') tableId: string,
-    @Headers('x-dev-user-id') xDevUserId?: string,
-  ) {
-    return this.tablesService.getDetail(tableId, devUserId(xDevUserId));
+  detail(@Param('tableId') tableId: string, @Req() req: Request) {
+    return this.tablesService.getDetail(tableId, req.pokerUserId);
   }
 
   @Post(':tableId/sit')
   sit(
     @Param('tableId') tableId: string,
-    @Headers('x-dev-user-id') xDevUserId: string | undefined,
+    @Req() req: Request,
     @Body() body: { seatIndex?: number },
   ) {
     if (typeof body?.seatIndex !== 'number' || !Number.isInteger(body.seatIndex)) {
       throw new BadRequestException('Field "seatIndex" (integer) is required.');
     }
-    return this.tablesService.sitAtSeat(
-      tableId,
-      devUserId(xDevUserId),
-      body.seatIndex,
-    );
+    return this.tablesService.sitAtSeat(tableId, req.pokerUserId, body.seatIndex);
   }
 
   @Post(':tableId/leave')
-  leave(
-    @Param('tableId') tableId: string,
-    @Headers('x-dev-user-id') xDevUserId?: string,
-  ) {
-    return this.tablesService.leaveSeat(tableId, devUserId(xDevUserId));
+  leave(@Param('tableId') tableId: string, @Req() req: Request) {
+    return this.tablesService.leaveSeat(tableId, req.pokerUserId);
   }
 
   @Post(':tableId/close')
-  async close(
-    @Param('tableId') tableId: string,
-    @Headers('x-dev-user-id') xDevUserId?: string,
-  ) {
-    await this.tablesService.closeTable(tableId, devUserId(xDevUserId));
+  async close(@Param('tableId') tableId: string, @Req() req: Request) {
+    await this.tablesService.closeTable(tableId, req.pokerUserId);
     return { ok: true };
   }
 }

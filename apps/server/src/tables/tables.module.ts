@@ -7,6 +7,7 @@ import {
 } from '../clubs/schemas/club-member.schema';
 import { ClubTable, ClubTableSchema } from './schemas/club-table.schema';
 import { TableSeat, TableSeatSchema } from './schemas/table-seat.schema';
+import { HoldemCoordinator } from './holdem-coordinator';
 import { TableGateway } from './table.gateway';
 import { TablesController } from './tables.controller';
 import { TablesService } from './tables.service';
@@ -21,7 +22,7 @@ import { TablesService } from './tables.service';
     ]),
   ],
   controllers: [TablesController],
-  providers: [TablesService, TableGateway],
+  providers: [HoldemCoordinator, TablesService, TableGateway],
   exports: [TablesService],
 })
 export class TablesModule {}

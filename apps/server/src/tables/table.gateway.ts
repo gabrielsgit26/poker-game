@@ -83,6 +83,8 @@ export class TableGateway implements OnGatewayConnection {
     await client.join(tableRoomId(tableId));
     const snap = await this.tablesService.getBroadcastPayload(tableId);
     if (snap) client.emit('tableState', snap);
+    const holes = await this.tablesService.getViewerHoleCardsForUser(tableId, userId);
+    if (holes) client.emit('yourHoleCards', { cards: holes });
     return { ok: true };
   }
 
@@ -94,6 +96,30 @@ export class TableGateway implements OnGatewayConnection {
     const tableId = body?.tableId?.trim();
     if (tableId) await client.leave(tableRoomId(tableId));
     return { ok: true };
+  }
+
+  @SubscribeMessage('gameAction')
+  async gameAction(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { tableId?: string; action?: unknown },
+  ) {
+    const tableId = body?.tableId?.trim();
+    if (!tableId) return { ok: false, error: 'tableId required' };
+    const userId = devUserIdFromSocket(client);
+    try {
+      await this.tablesService.applyHoldemGameAction(tableId, userId, body?.action);
+      return { ok: true };
+    } catch (e: unknown) {
+      const msg =
+        e instanceof ForbiddenException
+          ? e.message
+          : e instanceof NotFoundException
+            ? e.message
+            : e instanceof BadRequestException
+              ? e.message
+              : 'Action rejected';
+      return { ok: false, error: msg };
+    }
   }
 
   @SubscribeMessage('tableAction')

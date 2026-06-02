@@ -1,5 +1,5 @@
 import type { ClubCardMembership } from "./types";
-import { apiBase, devHeaders } from "../dev-api";
+import { apiBase, credFetch } from "../dev-api";
 
 export interface ClubListApiItem {
   id: string;
@@ -13,8 +13,7 @@ export async function fetchClubsList(): Promise<ClubListApiItem[] | null> {
   const base = apiBase();
   if (!base) return null;
   try {
-    const res = await fetch(`${base}/clubs`, {
-      headers: devHeaders(),
+    const res = await credFetch(`${base}/clubs`, {
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -47,8 +46,7 @@ export async function fetchClubDetail(
   const base = apiBase();
   if (!base) return null;
   try {
-    const res = await fetch(`${base}/clubs/${encodeURIComponent(clubId)}`, {
-      headers: devHeaders(),
+    const res = await credFetch(`${base}/clubs/${encodeURIComponent(clubId)}`, {
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -63,11 +61,10 @@ export async function postJoinClub(
 ): Promise<{ status: string } | null> {
   const base = apiBase();
   if (!base) return null;
-  const res = await fetch(
+  const res = await credFetch(
     `${base}/clubs/${encodeURIComponent(clubId)}/join`,
     {
       method: "POST",
-      headers: devHeaders(),
     },
   );
   if (!res.ok) return null;
@@ -80,9 +77,9 @@ export async function postCreateClub(body: {
 }): Promise<ClubListApiItem | null> {
   const base = apiBase();
   if (!base) return null;
-  const res = await fetch(`${base}/clubs`, {
+  const res = await credFetch(`${base}/clubs`, {
     method: "POST",
-    headers: { ...devHeaders(), "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   if (!res.ok) return null;
@@ -96,11 +93,11 @@ export async function patchJoinRequest(
 ): Promise<boolean> {
   const base = apiBase();
   if (!base) return false;
-  const res = await fetch(
+  const res = await credFetch(
     `${base}/clubs/${encodeURIComponent(clubId)}/join-requests/${encodeURIComponent(requestId)}`,
     {
       method: "PATCH",
-      headers: { ...devHeaders(), "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ approve }),
     },
   );

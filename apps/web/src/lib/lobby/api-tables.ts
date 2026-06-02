@@ -1,12 +1,12 @@
-import { apiBase, devHeaders } from "@/lib/dev-api";
+import { apiBase, credFetch } from "@/lib/dev-api";
 import type { TableCardModel } from "@/lib/lobby/types";
+import type { HoldemPublicSnapshot } from "@telegram-poker/shared/poker-engine";
 
 export async function fetchTablesList(): Promise<TableCardModel[] | null> {
   const base = apiBase();
   if (!base) return null;
   try {
-    const res = await fetch(`${base}/tables`, {
-      headers: devHeaders(),
+    const res = await credFetch(`${base}/tables`, {
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -23,11 +23,28 @@ export interface TableSeatApi {
 
 export type TableSocketActionApi = "check" | "fold";
 
+export type TableLastActionSourceApi = "player" | "timeout";
+
 export interface TableLastActionApi {
   userId: string;
   action: TableSocketActionApi;
   at: number;
+  source?: TableLastActionSourceApi;
 }
+
+export interface TableActionTurnApi {
+  actionSeatIndex: number | null;
+  facingBet: boolean;
+}
+
+export type HoldemGameActionPayload =
+  | { type: "fold" }
+  | { type: "check" }
+  | { type: "call" }
+  | { type: "bet"; amount: number }
+  | { type: "raise_to"; amount: number };
+
+export type { HoldemPublicSnapshot };
 
 export interface TableDetailApi {
   table: TableCardModel;
@@ -37,6 +54,12 @@ export interface TableDetailApi {
   turnDeadlineEpochMs: number | null;
   /** Last socket “action” (Phase 8 dev UX; not full street engine). */
   lastAction: TableLastActionApi | null;
+  /** Whose turn it is (≥2 seated); `facingBet` flips each resolved action until a real street engine exists. */
+  actionTurn: TableActionTurnApi;
+  /** NL holdem public state when a hand is in Redis; null between hands. */
+  holdem: HoldemPublicSnapshot | null;
+  /** Requesting user’s hole cards when seated in the current hand. */
+  viewerHoleCards: [string, string] | null;
 }
 
 export async function fetchTableDetail(
@@ -45,8 +68,7 @@ export async function fetchTableDetail(
   const base = apiBase();
   if (!base) return null;
   try {
-    const res = await fetch(`${base}/tables/${encodeURIComponent(tableId)}`, {
-      headers: devHeaders(),
+    const res = await credFetch(`${base}/tables/${encodeURIComponent(tableId)}`, {
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -67,9 +89,9 @@ export async function postCreateTable(body: {
 }): Promise<TableCardModel | null> {
   const base = apiBase();
   if (!base) return null;
-  const res = await fetch(`${base}/tables`, {
+  const res = await credFetch(`${base}/tables`, {
     method: "POST",
-    headers: { ...devHeaders(), "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   if (!res.ok) return null;
@@ -82,11 +104,11 @@ export async function postSitAtSeat(
 ): Promise<TableDetailApi | null> {
   const base = apiBase();
   if (!base) return null;
-  const res = await fetch(
+  const res = await credFetch(
     `${base}/tables/${encodeURIComponent(tableId)}/sit`,
     {
       method: "POST",
-      headers: { ...devHeaders(), "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ seatIndex }),
     },
   );
@@ -99,11 +121,10 @@ export async function postLeaveSeat(
 ): Promise<TableDetailApi | null> {
   const base = apiBase();
   if (!base) return null;
-  const res = await fetch(
+  const res = await credFetch(
     `${base}/tables/${encodeURIComponent(tableId)}/leave`,
     {
       method: "POST",
-      headers: devHeaders(),
     },
   );
   if (!res.ok) return null;
@@ -113,11 +134,10 @@ export async function postLeaveSeat(
 export async function postCloseTable(tableId: string): Promise<boolean> {
   const base = apiBase();
   if (!base) return false;
-  const res = await fetch(
+  const res = await credFetch(
     `${base}/tables/${encodeURIComponent(tableId)}/close`,
     {
       method: "POST",
-      headers: devHeaders(),
     },
   );
   return res.ok;

@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { apiBase } from "@/lib/dev-api";
+import { useAuthActions, useAuthUserId } from "@/providers/auth-context";
 import {
   CARD_STYLES,
   TABLE_THEMES,
@@ -55,6 +57,11 @@ function ToggleRow({
 
 export function SettingsForm() {
   const router = useRouter();
+  const liveApi = Boolean(apiBase());
+  const authUserId = useAuthUserId();
+  const { devLogin, logout: clearServerSession } = useAuthActions();
+  const [devUid, setDevUid] = useState("");
+  const [sessBusy, setSessBusy] = useState(false);
   const [ready, setReady] = useState(false);
   const [sound, setSound] = useState(true);
   const [vibration, setVibration] = useState(true);
@@ -62,6 +69,10 @@ export function SettingsForm() {
   const [tableTheme, setTableTheme] = useState("classic-green");
   const [cardStyle, setCardStyle] = useState("standard");
   const [language, setLanguage] = useState("en");
+
+  useEffect(() => {
+    setDevUid(authUserId);
+  }, [authUserId]);
 
   useEffect(() => {
     setSound(readPref("sound", "1") === "1");
@@ -73,7 +84,7 @@ export function SettingsForm() {
     setReady(true);
   }, []);
 
-  const logout = () => {
+  const clearLocalPrefs = () => {
     clearPokerPrefs();
     router.push("/lobby");
     router.refresh();
@@ -231,6 +242,73 @@ export function SettingsForm() {
         />
       </section>
 
+      {liveApi ? (
+        <section className="space-y-3" aria-labelledby="dev-session">
+          <h2
+            id="dev-session"
+            className="text-xs font-medium uppercase tracking-widest text-zinc-500"
+          >
+            Dev session (Phase 2)
+          </h2>
+          <div className="rounded-xl border border-white/10 bg-zinc-900/40 p-4 text-sm text-zinc-200">
+            <p className="text-xs text-zinc-500">
+              Current API user:{" "}
+              <span className="font-mono text-zinc-300">{authUserId}</span>
+            </p>
+            <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
+              For HTTP-only cookies, set{" "}
+              <code className="text-emerald-200/90">NEXT_PUBLIC_API_URL=/api</code> and{" "}
+              <code className="text-emerald-200/90">API_PROXY_TARGET=http://localhost:3001</code>{" "}
+              in <code className="text-zinc-400">apps/web/.env.local</code> (see repo{" "}
+              <code className="text-zinc-400">.env.example</code>).
+            </p>
+            <label className="mt-3 block text-xs text-zinc-500" htmlFor="dev-uid">
+              User id (letters, digits, <code className="text-zinc-400">._-</code> only)
+            </label>
+            <input
+              id="dev-uid"
+              value={devUid}
+              onChange={(e) => setDevUid(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 font-mono text-sm text-zinc-100"
+              autoComplete="off"
+            />
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={sessBusy}
+                onClick={async () => {
+                  setSessBusy(true);
+                  try {
+                    const ok = await devLogin(devUid.trim() || undefined);
+                    if (!ok) window.alert("Dev login failed (check API and proxy env).");
+                  } finally {
+                    setSessBusy(false);
+                  }
+                }}
+                className="rounded-lg bg-emerald-600/85 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
+              >
+                {sessBusy ? "…" : "Start dev session"}
+              </button>
+              <button
+                type="button"
+                disabled={sessBusy}
+                onClick={async () => {
+                  setSessBusy(true);
+                  try {
+                    await clearServerSession();
+                  } finally {
+                    setSessBusy(false);
+                  }
+                }}
+                className="rounded-lg border border-white/15 px-4 py-2 text-xs font-semibold text-zinc-300"
+              >
+                Clear server session
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       <section
         className="rounded-xl border border-amber-500/20 bg-amber-950/20 p-4 text-sm text-amber-100/90"
         aria-labelledby="rg-heading"
@@ -248,14 +326,15 @@ export function SettingsForm() {
       <div className="space-y-3 pt-2">
         <button
           type="button"
-          onClick={logout}
+          onClick={clearLocalPrefs}
           className="w-full rounded-xl border border-rose-500/40 bg-rose-950/30 py-3 text-sm font-semibold text-rose-200 transition hover:bg-rose-950/50"
         >
-          Log out (clear saved prefs)
+          Clear local preferences
         </button>
         <p className="text-center text-[11px] text-zinc-600">
           Clears keys starting with <code className="text-zinc-500">poker:</code>{" "}
-          and returns to the lobby. No server session yet.
+          and returns to the lobby. Does not clear the Nest session cookie — use
+          “Clear server session” above when the API is configured.
         </p>
       </div>
     </div>

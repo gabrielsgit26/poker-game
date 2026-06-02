@@ -7,8 +7,8 @@ Monorepo aligned with `telegram_poker_platform_development_plan.md`.
 | Path | Purpose |
 |------|---------|
 | `apps/web` | Next.js — lobby, **`/play`**, profile, settings, **`/clubs/*`**, **`/tables/*`**, Socket.IO client on table detail (Phase 8), TanStack Query, `src/lib/poker-engine` |
-| `apps/server` | NestJS — **`GET /health`**, **`/clubs`**, **`/tables`**, **Socket.IO** (table rooms, `tableState` / `tableClosed`), future full game gateway |
-| `packages/shared` | Shared TypeScript types |
+| `apps/server` | NestJS — **`GET /health`**, **`/auth/*`**, **`/clubs`**, **`/tables`**, **Socket.IO** (table rooms, `tableState` / `tableClosed`) |
+| `packages/shared` | Shared types and **`@telegram-poker/shared/poker-engine`** (NL hold’em: deck, streets, pot, showdown) |
 
 ## Developing without Telegram
 
@@ -16,10 +16,13 @@ Monorepo aligned with `telegram_poker_platform_development_plan.md`.
 - Use **`/play`** for a local heads-up hand runout (deck + hand evaluation in the browser). No Mini App and no API session required.
 - Telegram login can be added later without changing that flow.
 
-## Phase 1–8 (partial)
+See **[docs/DEVELOPMENT_STATUS.md](docs/DEVELOPMENT_STATUS.md)** for a phase-by-phase checklist vs `telegram_poker_platform_development_plan.md` §12.
+
+## Phase 1–8 (MVP engine + live table)
 
 - **Phases 1–6:** As before (shell, lobby, profile, settings, clubs, tables with seats + HTTP sit/leave/close).
-- **Phase 8 (realtime — started):** Socket.IO on the **same port** as the REST API (`/socket.io`). **`joinTable`** / **`leaveTable`** / **`tableAction`** (`check` | `fold`, seated players only); handshake **`auth.userId`** (or `query.userId`) sets the dev identity; **private-club** tables require an **active club member** before joining the socket room. **`tableState`** + HTTP detail include **`turnDeadlineEpochMs`** (Redis `poker:table:{id}:turnDeadline`, refreshed on sit/leave/create/socket action; cleared on close) and **`lastAction`** (`poker:table:{id}:lastAction`). Web **`useTableSocket`** sends **`auth: { userId }`**, merges socket payloads into the table query, **`emitTableAction`**, **`TurnCountdown`**, and seat **Check** / **Fold** when live. Still TODO: real street/turn engine, auto-check/fold, JWT auth.
+- **Phase 7:** **`packages/shared/src/poker-engine`** — NL-style state machine (`startHoldemHand`, `applyHoldemAction`, board runout, pot, payouts). Imported by the Nest **`HoldemCoordinator`** (Redis `poker:table:{id}:holdem` + dealer button key).
+- **Phase 8:** Socket.IO **`gameAction`** with `{ type: 'fold' | 'check' | 'call' | 'bet' | 'raise_to', amount? }` during **`holdem.phase === 'betting'`**; legacy **`tableAction`** (`check` \| `fold`) remains for the synthetic turn when no engine hand is active. **`tableState`** and **`GET /tables/:id`** include **`holdem`** (public snapshot) and per-viewer **`viewerHoleCards`**; **`joinTable`** may emit **`yourHoleCards`**. The action clock applies hold’em **check**/**fold** on timeout when a betting hand is active. **Still TODO:** JWT auth, side pots / full all-in rules, production multi-node timers.
 
 ## Prerequisites
 
@@ -62,4 +65,4 @@ Monorepo aligned with `telegram_poker_platform_development_plan.md`.
 
 ## Roadmap (plan §12)
 
-Work proceeds phase-by-phase. Telegram auth is optional for local work. Next: **Phase 8** (in-game socket actions, auto-check/fold), **Phase 7** server-side engine alignment, **Phase 2** Telegram auth, **Phase 9** wallet, … through **12** polish.
+Work proceeds phase-by-phase. Telegram auth is optional for local work. Next: **Phase 2** Telegram auth, **Phase 9** wallet, … through **12** polish. Engine follow-ups: side pots, stricter validation, automated tests.
