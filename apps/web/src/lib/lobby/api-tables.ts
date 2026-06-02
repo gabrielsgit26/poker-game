@@ -21,10 +21,22 @@ export interface TableSeatApi {
   userId: string | null;
 }
 
+export type TableSocketActionApi = "check" | "fold";
+
+export interface TableLastActionApi {
+  userId: string;
+  action: TableSocketActionApi;
+  at: number;
+}
+
 export interface TableDetailApi {
   table: TableCardModel;
   seats: TableSeatApi[];
   viewerSeatIndex: number | null;
+  /** Server action clock (Redis); null if not started or Redis unavailable. */
+  turnDeadlineEpochMs: number | null;
+  /** Last socket “action” (Phase 8 dev UX; not full street engine). */
+  lastAction: TableLastActionApi | null;
 }
 
 export async function fetchTableDetail(

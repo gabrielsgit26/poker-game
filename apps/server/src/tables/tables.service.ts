@@ -1,13 +1,16 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
   OnModuleInit,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { randomUUID } from 'node:crypto';
+import Redis from 'ioredis';
 import { Club, ClubDocument } from '../clubs/schemas/club.schema';
 import {
   ClubMember,
@@ -15,6 +18,8 @@ import {
 } from '../clubs/schemas/club-member.schema';
 import { ClubTable, ClubTableDocument } from './schemas/club-table.schema';
 import { TableSeat, TableSeatDocument } from './schemas/table-seat.schema';
+import { TableGateway } from './table.gateway';
+import { REDIS_CLIENT } from '../redis/redis.module';
 
 export type LobbyPlayStatus = 'WAITING' | 'PLAYING' | 'FULL';
 
@@ -37,10 +42,30 @@ export interface TableSeatRow {
   userId: string | null;
 }
 
+export type TableSocketAction = 'check' | 'fold';
+
+export interface TableLastActionDto {
+  userId: string;
+  action: TableSocketAction;
+  at: number;
+}
+
 export interface TableDetailPayload {
   table: TableListRow;
   seats: TableSeatRow[];
   viewerSeatIndex: number | null;
+  /** Monotonic ms since epoch when the current table action clock expires (Redis). */
+  turnDeadlineEpochMs: number | null;
+  /** Last dev “poker” action over the socket (Phase 8; not full hand engine yet). */
+  lastAction: TableLastActionDto | null;
+}
+
+/** Public snapshot for HTTP + Socket.IO (no per-viewer fields). */
+export interface TableBroadcastPayload {
+  table: TableListRow;
+  seats: TableSeatRow[];
+  turnDeadlineEpochMs: number | null;
+  lastAction: TableLastActionDto | null;
 }
 
 function lobbyPlayStatus(
@@ -62,6 +87,9 @@ export class TablesService implements OnModuleInit {
     @InjectModel(Club.name) private readonly clubModel: Model<ClubDocument>,
     @InjectModel(ClubMember.name)
     private readonly memberModel: Model<ClubMemberDocument>,
+    @Inject(forwardRef(() => TableGateway))
+    private readonly tableGateway: TableGateway,
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -150,6 +178,167 @@ export class TablesService implements OnModuleInit {
     return this.seatModel.countDocuments({ tableId });
   }
 
+  private async buildSeats(
+    tableId: string,
+    maxPlayers: number,
+  ): Promise<TableSeatRow[]> {
+    const seatsTaken = await this.seatModel
+      .find({ tableId })
+      .sort({ seatIndex: 1 })
+      .lean();
+    const bySeat = new Map<number, string>();
+    for (const s of seatsTaken) {
+      bySeat.set(s.seatIndex, s.userId);
+    }
+    const seats: TableSeatRow[] = [];
+    for (let i = 0; i < maxPlayers; i++) {
+      seats.push({
+        seatIndex: i,
+        userId: bySeat.get(i) ?? null,
+      });
+    }
+    return seats;
+  }
+
+  private turnDeadlineKey(tableId: string): string {
+    return `poker:table:${tableId}:turnDeadline`;
+  }
+
+  private lastActionKey(tableId: string): string {
+    return `poker:table:${tableId}:lastAction`;
+  }
+
+  private async readTurnDeadlineEpochMs(tableId: string): Promise<number | null> {
+    try {
+      const raw = await this.redis.get(this.turnDeadlineKey(tableId));
+      if (raw == null || raw === '') return null;
+      const n = parseInt(raw, 10);
+      return Number.isFinite(n) ? n : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Resets the “action clock” used for Phase 8 turn timer UX (not full poker yet). */
+  async refreshTurnDeadline(tableId: string): Promise<void> {
+    const t = await this.tableModel.findById(tableId);
+    if (!t || t.status === 'CLOSED') return;
+    const sec = Math.min(120, Math.max(5, t.timerSeconds));
+    const deadline = Date.now() + sec * 1000;
+    try {
+      await this.redis.set(
+        this.turnDeadlineKey(tableId),
+        String(deadline),
+        'EX',
+        sec,
+      );
+    } catch {
+      /* Redis optional for local dev without Redis — skip timer */
+    }
+  }
+
+  private async readLastAction(
+    tableId: string,
+  ): Promise<TableLastActionDto | null> {
+    try {
+      const raw = await this.redis.get(this.lastActionKey(tableId));
+      if (raw == null || raw === '') return null;
+      const parsed = JSON.parse(raw) as Partial<TableLastActionDto>;
+      if (
+        typeof parsed.userId !== 'string' ||
+        (parsed.action !== 'check' && parsed.action !== 'fold') ||
+        typeof parsed.at !== 'number'
+      ) {
+        return null;
+      }
+      return {
+        userId: parsed.userId,
+        action: parsed.action,
+        at: parsed.at,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private async clearTableRealtimeKeys(tableId: string): Promise<void> {
+    try {
+      await this.redis.del(this.turnDeadlineKey(tableId), this.lastActionKey(tableId));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /**
+   * Private-club tables: only active members may subscribe via Socket.IO.
+   * Public clubs allow spectators.
+   */
+  async assertCanWatchTable(tableId: string, userId: string): Promise<void> {
+    const t = await this.tableModel.findById(tableId).lean();
+    if (!t || t.status === 'CLOSED') {
+      throw new NotFoundException('Table not found');
+    }
+    const club = await this.clubModel.findById(t.clubId).lean();
+    if (!club) throw new NotFoundException('Club not found');
+    if (!club.isPrivate) return;
+    const m = await this.memberModel.findOne({
+      clubId: t.clubId,
+      userId,
+      status: 'ACTIVE',
+    });
+    if (!m) {
+      throw new ForbiddenException(
+        'Join this private club before watching its tables over the socket.',
+      );
+    }
+  }
+
+  /**
+   * Lightweight “player action” for Phase 8 sockets (not the full betting engine).
+   * Caller must be seated; resets the action clock and broadcasts.
+   */
+  async applySocketTableAction(
+    tableId: string,
+    userId: string,
+    action: TableSocketAction,
+  ): Promise<void> {
+    const t = await this.tableModel.findById(tableId);
+    if (!t || t.status === 'CLOSED') {
+      throw new NotFoundException('Table not found');
+    }
+    const seated = await this.seatModel.findOne({ tableId, userId });
+    if (!seated) {
+      throw new ForbiddenException('Sit at the table before sending actions.');
+    }
+
+    const row: TableLastActionDto = { userId, action, at: Date.now() };
+    try {
+      await this.redis.set(
+        this.lastActionKey(tableId),
+        JSON.stringify(row),
+        'EX',
+        86400,
+      );
+    } catch {
+      /* Redis optional */
+    }
+    await this.refreshTurnDeadline(tableId);
+    await this.tableGateway.broadcastState(tableId);
+  }
+
+  /** Snapshot for lobby cards / sockets (no viewer seat index). */
+  async getBroadcastPayload(
+    tableId: string,
+  ): Promise<TableBroadcastPayload | null> {
+    const t = await this.tableModel.findById(tableId);
+    if (!t || t.status === 'CLOSED') return null;
+    const seats = await this.buildSeats(t._id, t.maxPlayers);
+    const table = await this.toListRow(t);
+    const turnDeadlineEpochMs = await this.readTurnDeadlineEpochMs(tableId);
+    const lastAction = await this.readLastAction(tableId);
+    return { table, seats, turnDeadlineEpochMs, lastAction };
+  }
+
   private async toListRow(t: ClubTableDocument): Promise<TableListRow> {
     const occupied = await this.occupiedCount(t._id);
     return {
@@ -234,7 +423,10 @@ export class TablesService implements OnModuleInit {
     });
     const doc = await this.tableModel.findById(id);
     if (!doc) throw new NotFoundException();
-    return this.toListRow(doc);
+    await this.refreshTurnDeadline(id);
+    const row = await this.toListRow(doc);
+    await this.tableGateway.broadcastState(id);
+    return row;
   }
 
   async getDetail(tableId: string, userId: string): Promise<TableDetailPayload> {
@@ -242,27 +434,17 @@ export class TablesService implements OnModuleInit {
     if (!t) throw new NotFoundException('Table not found');
     if (t.status === 'CLOSED') throw new NotFoundException('Table is closed');
 
-    const seatsTaken = await this.seatModel.find({ tableId }).sort({ seatIndex: 1 }).lean();
-    const bySeat = new Map<number, string>();
-    for (const s of seatsTaken) {
-      bySeat.set(s.seatIndex, s.userId);
-    }
-
-    const seats: TableSeatRow[] = [];
-    for (let i = 0; i < t.maxPlayers; i++) {
-      seats.push({
-        seatIndex: i,
-        userId: bySeat.get(i) ?? null,
-      });
-    }
+    const seats = await this.buildSeats(tableId, t.maxPlayers);
 
     let viewerSeatIndex: number | null = null;
-    for (const s of seatsTaken) {
+    for (const s of seats) {
       if (s.userId === userId) viewerSeatIndex = s.seatIndex;
     }
 
     const row = await this.toListRow(t);
-    return { table: row, seats, viewerSeatIndex };
+    const turnDeadlineEpochMs = await this.readTurnDeadlineEpochMs(tableId);
+    const lastAction = await this.readLastAction(tableId);
+    return { table: row, seats, viewerSeatIndex, turnDeadlineEpochMs, lastAction };
   }
 
   async sitAtSeat(
@@ -289,7 +471,10 @@ export class TablesService implements OnModuleInit {
     if (taken) throw new BadRequestException('Seat is occupied.');
 
     await this.seatModel.create({ tableId, seatIndex, userId });
-    return this.getDetail(tableId, userId);
+    await this.refreshTurnDeadline(tableId);
+    const detail = await this.getDetail(tableId, userId);
+    await this.tableGateway.broadcastState(tableId);
+    return detail;
   }
 
   async leaveSeat(tableId: string, userId: string): Promise<TableDetailPayload> {
@@ -299,7 +484,10 @@ export class TablesService implements OnModuleInit {
     if (res.deletedCount === 0) {
       throw new BadRequestException('You are not seated at this table.');
     }
-    return this.getDetail(tableId, userId);
+    await this.refreshTurnDeadline(tableId);
+    const detail = await this.getDetail(tableId, userId);
+    await this.tableGateway.broadcastState(tableId);
+    return detail;
   }
 
   async closeTable(tableId: string, userId: string): Promise<void> {
@@ -319,8 +507,10 @@ export class TablesService implements OnModuleInit {
       throw new ForbiddenException('Only the creator or a club manager can close this table.');
     }
 
+    await this.clearTableRealtimeKeys(tableId);
     t.status = 'CLOSED';
     await t.save();
+    this.tableGateway.emitTableClosed(tableId);
     await this.seatModel.deleteMany({ tableId });
   }
 }

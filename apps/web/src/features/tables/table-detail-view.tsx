@@ -3,17 +3,46 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { formatChips } from "@/lib/format-chips";
+import { apiBase } from "@/lib/dev-api";
 import {
   fetchTableDetail,
   postCloseTable,
   postLeaveSeat,
   postSitAtSeat,
 } from "@/lib/lobby/api-tables";
+import { useTableSocket } from "@/features/tables/use-table-socket";
+
+function TurnCountdown({ deadlineMs }: { deadlineMs: number | null }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (deadlineMs == null) return;
+    const id = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [deadlineMs]);
+  if (deadlineMs == null) return null;
+  const sec = Math.max(0, Math.ceil((deadlineMs - Date.now()) / 1000));
+  return (
+    <p className="mt-2 text-sm tabular-nums text-amber-200/80">
+      Action clock: {sec}s
+    </p>
+  );
+}
 
 export function TableDetailView({ tableId }: { tableId: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const live = Boolean(apiBase());
+
+  const onTableClosed = useCallback(() => {
+    router.push("/tables");
+  }, [router]);
+
+  const { emitTableAction } = useTableSocket(tableId, {
+    queryClient,
+    onTableClosed,
+  });
 
   const { data, isPending, isError, refetch } = useQuery({
     queryKey: ["table", tableId],
@@ -102,10 +131,43 @@ export function TableDetailView({ tableId }: { tableId: string }) {
           {formatChips(table.minBuyIn)} · timer {table.timerSeconds}s ·{" "}
           {table.players}/{table.maxPlayers} seated · {table.playStatus}
         </p>
+        {live ? (
+          <p className="mt-2 text-[11px] text-emerald-400/90">
+            Live seats · Socket.IO (Phase 8)
+          </p>
+        ) : null}
+        <TurnCountdown deadlineMs={data.turnDeadlineEpochMs ?? null} />
+        {data.lastAction ? (
+          <p className="mt-2 text-xs text-zinc-500">
+            Last action:{" "}
+            <span className="font-medium text-zinc-300">
+              {data.lastAction.action}
+            </span>{" "}
+            <span className="font-mono text-zinc-400">{data.lastAction.userId}</span>
+          </p>
+        ) : null}
       </div>
 
       {viewerSeatIndex !== null ? (
         <div className="flex flex-wrap gap-2">
+          {live ? (
+            <>
+              <button
+                type="button"
+                onClick={() => emitTableAction("check")}
+                className="rounded-xl border border-emerald-500/40 bg-emerald-950/40 px-4 py-2 text-sm font-semibold text-emerald-100"
+              >
+                Check
+              </button>
+              <button
+                type="button"
+                onClick={() => emitTableAction("fold")}
+                className="rounded-xl border border-zinc-600 bg-zinc-900 px-4 py-2 text-sm font-semibold text-zinc-200"
+              >
+                Fold
+              </button>
+            </>
+          ) : null}
           <button
             type="button"
             disabled={leaveMut.isPending}
