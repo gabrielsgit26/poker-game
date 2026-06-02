@@ -70,12 +70,18 @@ export function TableCard({ table }: { table: TableCardModel }) {
           </dd>
         </div>
       </dl>
-      <div className="mt-4 flex justify-end">
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
         <Link
           href="/play"
+          className="rounded-lg border border-white/15 bg-zinc-800/80 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:bg-zinc-700"
+        >
+          Practice
+        </Link>
+        <Link
+          href={`/tables/${table.id}`}
           className="rounded-lg bg-emerald-600/90 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500"
         >
-          Join
+          Table
         </Link>
       </div>
     </article>

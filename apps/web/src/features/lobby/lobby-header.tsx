@@ -43,12 +43,13 @@ export function LobbyHeader({ user }: { user: LobbyUser }) {
   return (
     <header className="rounded-2xl border border-white/10 bg-zinc-900/50 p-4 shadow-lg shadow-black/20 backdrop-blur-sm">
       <div className="flex items-start gap-3">
-        <div
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-amber-500/40 bg-gradient-to-br from-amber-900/50 to-zinc-900 text-xl text-amber-200"
-          aria-hidden
+        <Link
+          href="/profile"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-amber-500/40 bg-gradient-to-br from-amber-900/50 to-zinc-900 text-xl text-amber-200 transition hover:border-amber-400/60"
+          aria-label="Open profile"
         >
-          {user.avatarEmoji}
-        </div>
+          <span aria-hidden>{user.avatarEmoji}</span>
+        </Link>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm text-zinc-400">
             Hello,{" "}
@@ -69,10 +70,10 @@ export function LobbyHeader({ user }: { user: LobbyUser }) {
             <IconBell />
           </button>
           <Link
-            href="/profile"
+            href="/settings"
             className="rounded-lg p-2 text-zinc-400 transition hover:bg-white/5 hover:text-zinc-200"
-            aria-label="Profile and settings"
-            title="Profile"
+            aria-label="Settings"
+            title="Settings"
           >
             <IconSettings />
           </Link>

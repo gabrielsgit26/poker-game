@@ -7,7 +7,7 @@ export default function MainShellLayout({
 }) {
   return (
     <div className="flex min-h-dvh flex-col">
-      <main className="flex-1 pb-24 pt-4">{children}</main>
+      <main className="flex-1 pb-28 pt-4">{children}</main>
       <MobileBottomNav />
     </div>
   );

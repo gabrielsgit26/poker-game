@@ -10,5 +10,8 @@
     "dev:server": "npm run start:dev --workspace=server",
     "build:shared": "npm run build --workspace=@telegram-poker/shared",
     "build": "npm run build:shared && npm run build --workspace=web && npm run build --workspace=server"
+  },
+  "dependencies": {
+    "@nestjs/platform-express": "^11.1.24"
   }
 }

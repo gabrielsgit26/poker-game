@@ -25,3 +25,40 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   min-height: 100dvh;
 }
+
+/* Table theme tint (Phase 4) — `data-table-theme` set by `ThemeRoot` */
+html[data-table-theme="classic-green"] body {
+  background: radial-gradient(
+      ellipse 120% 80% at 50% -20%,
+      rgba(16, 185, 129, 0.14),
+      transparent 55%
+    ),
+    var(--background);
+}
+
+html[data-table-theme="royal-blue"] body {
+  background: radial-gradient(
+      ellipse 120% 80% at 50% -20%,
+      rgba(59, 130, 246, 0.14),
+      transparent 55%
+    ),
+    var(--background);
+}
+
+html[data-table-theme="midnight-black"] body {
+  background: radial-gradient(
+      ellipse 120% 80% at 50% -20%,
+      rgba(113, 113, 122, 0.08),
+      transparent 55%
+    ),
+    var(--background);
+}
+
+html[data-table-theme="gold-room"] body {
+  background: radial-gradient(
+      ellipse 120% 80% at 50% -20%,
+      rgba(212, 168, 83, 0.12),
+      transparent 55%
+    ),
+    var(--background);
+}

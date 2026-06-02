@@ -9,13 +9,39 @@ function membershipBadge(m: ClubCardModel["membership"]) {
       return "border-amber-500/40 bg-amber-950/40 text-amber-200";
     case "PRIVATE":
       return "border-zinc-500/40 bg-zinc-800/60 text-zinc-300";
+    case "OPEN":
+      return "border-sky-500/35 bg-sky-950/40 text-sky-200";
     default:
       return "border-white/10 bg-zinc-800 text-zinc-300";
   }
 }
 
-export function ClubCard({ club }: { club: ClubCardModel }) {
+function membershipLabel(m: ClubCardModel["membership"]) {
+  switch (m) {
+    case "JOINED":
+      return "Joined";
+    case "PENDING":
+      return "Pending";
+    case "PRIVATE":
+      return "Private";
+    case "OPEN":
+      return "Open";
+    default:
+      return "";
+  }
+}
+
+export function ClubCard({
+  club,
+  onJoin,
+  joinBusy,
+}: {
+  club: ClubCardModel;
+  onJoin?: (clubId: string) => void;
+  joinBusy?: boolean;
+}) {
   const href = `/clubs/${club.id}`;
+
   const cta =
     club.membership === "JOINED" ? (
       <Link
@@ -24,13 +50,23 @@ export function ClubCard({ club }: { club: ClubCardModel }) {
       >
         Open
       </Link>
+    ) : club.membership === "PENDING" ? (
+      <span className="rounded-lg border border-white/10 bg-zinc-800/60 px-3 py-1.5 text-center text-xs font-medium text-zinc-400">
+        Awaiting approval
+      </span>
     ) : (
       <button
         type="button"
-        className="rounded-lg border border-white/15 bg-zinc-800/80 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:bg-zinc-700"
-        title="Join flow arrives in Phase 5"
+        disabled={joinBusy || !onJoin}
+        title={
+          !onJoin
+            ? "Set NEXT_PUBLIC_API_URL and run the API to join clubs from the app."
+            : undefined
+        }
+        onClick={() => onJoin?.(club.id)}
+        className="rounded-lg border border-amber-500/50 bg-amber-950/40 px-3 py-1.5 text-xs font-semibold text-amber-100 transition hover:bg-amber-950/60 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        Join
+        {joinBusy ? "…" : "Request / join"}
       </button>
     );
 
@@ -54,11 +90,7 @@ export function ClubCard({ club }: { club: ClubCardModel }) {
         <span
           className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${membershipBadge(club.membership)}`}
         >
-          {club.membership === "JOINED"
-            ? "Joined"
-            : club.membership === "PENDING"
-              ? "Pending"
-              : "Private"}
+          {membershipLabel(club.membership)}
         </span>
       </div>
       <div className="mt-4 flex justify-end">{cta}</div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useState } from "react";
 import { ClubCard } from "@/features/lobby/club-card";
 import { LobbyFilters } from "@/features/lobby/lobby-filters";
@@ -8,6 +9,7 @@ import { LobbyHeader } from "@/features/lobby/lobby-header";
 import { LobbySkeleton } from "@/features/lobby/lobby-skeleton";
 import { QuickActions } from "@/features/lobby/quick-actions";
 import { TableCard } from "@/features/lobby/table-card";
+import { postJoinClub } from "@/lib/lobby/api-clubs";
 import { fetchLobbySnapshot } from "@/lib/lobby/mock-lobby";
 import type { LobbyFilterId } from "@/lib/lobby/types";
 
@@ -29,7 +31,19 @@ function filterLabel(f: LobbyFilterId): string {
 }
 
 export function LobbyView() {
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<LobbyFilterId>("all");
+
+  const joinClub = useMutation({
+    mutationFn: (clubId: string) => postJoinClub(clubId),
+    onSuccess: (result) => {
+      if (result) {
+        void queryClient.invalidateQueries({ queryKey: ["lobby"] });
+      }
+    },
+  });
+
+  const canApiClubs = Boolean(process.env.NEXT_PUBLIC_API_URL?.trim());
 
   const { data, isPending, isError, refetch, isFetching } = useQuery({
     queryKey: ["lobby", filter],
@@ -66,14 +80,16 @@ export function LobbyView() {
   return (
     <div className="mx-auto max-w-lg space-y-6 px-4 py-2 pb-4">
       <p className="text-center text-[11px] text-zinc-500">
-        Phase 3 lobby · mock API
+        Phase 6 · clubs + tables from API when{" "}
+        <code className="text-zinc-600">NEXT_PUBLIC_API_URL</code> is set (fallback
+        mock otherwise)
         {isFetching ? (
           <span className="ml-2 text-amber-400/90">Refreshing…</span>
         ) : null}
       </p>
 
       <LobbyHeader user={data.user} />
-      <QuickActions role={data.user.role} />
+      <QuickActions />
 
       <section aria-label="Filters">
         <LobbyFilters value={filter} onChange={setFilter} />
@@ -87,6 +103,12 @@ export function LobbyView() {
           >
             Clubs
           </h2>
+          <Link
+            href="/clubs/new"
+            className="shrink-0 rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-1.5 text-xs font-semibold text-amber-200 transition hover:border-amber-400/60 hover:bg-amber-950/50"
+          >
+            Create club
+          </Link>
         </div>
         {data.clubs.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/15 bg-zinc-900/30 p-8 text-center">
@@ -101,7 +123,19 @@ export function LobbyView() {
           <ul className="space-y-3">
             {data.clubs.map((club) => (
               <li key={club.id}>
-                <ClubCard club={club} />
+                <ClubCard
+                  club={club}
+                  joinBusy={joinClub.isPending}
+                  onJoin={
+                    canApiClubs
+                      ? (clubId) => {
+                          void joinClub.mutateAsync(clubId).catch(() => {
+                            /* toast later */
+                          });
+                        }
+                      : undefined
+                  }
+                />
               </li>
             ))}
           </ul>

@@ -4,7 +4,7 @@ import type { UserRole } from "@telegram-poker/shared";
 export type LobbyFilterId = "all" | "my_clubs" | "waiting" | "low" | "high";
 
 /** Membership for club cards (UI labels from plan). */
-export type ClubCardMembership = "JOINED" | "PENDING" | "PRIVATE";
+export type ClubCardMembership = "JOINED" | "PENDING" | "PRIVATE" | "OPEN";
 
 export interface LobbyUser {
   displayName: string;

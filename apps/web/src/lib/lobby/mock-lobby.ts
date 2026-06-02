@@ -5,15 +5,17 @@ import type {
   LobbyUser,
   TableCardModel,
 } from "./types";
+import { fetchClubsList } from "./api-clubs";
+import { fetchTablesList } from "./api-tables";
 
-const MOCK_USER: LobbyUser = {
+export const MOCK_USER: LobbyUser = {
   displayName: "Local Player",
   balanceChips: 12_500,
   role: "PLAYER",
   avatarEmoji: "♠",
 };
 
-const MOCK_CLUBS: ClubCardModel[] = [
+export const MOCK_CLUBS: ClubCardModel[] = [
   {
     id: "c1",
     name: "Midnight Hold'em",
@@ -40,11 +42,11 @@ const MOCK_CLUBS: ClubCardModel[] = [
     name: "River Runners",
     memberCount: 8,
     activeTables: 0,
-    membership: "PENDING",
+    membership: "JOINED",
   },
 ];
 
-const MOCK_TABLES: TableCardModel[] = [
+export const MOCK_TABLES: TableCardModel[] = [
   {
     id: "t1",
     clubId: "c1",
@@ -105,6 +107,23 @@ function delay(ms: number) {
   });
 }
 
+/** Mock table rows per club (until tables are backed by the API). */
+export function mockActiveTableCountByClub(): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const t of MOCK_TABLES) {
+    m.set(t.clubId, (m.get(t.clubId) ?? 0) + 1);
+  }
+  return m;
+}
+
+function tableCountByClubFromList(tables: TableCardModel[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const t of tables) {
+    m.set(t.clubId, (m.get(t.clubId) ?? 0) + 1);
+  }
+  return m;
+}
+
 function applyFilter(snapshot: LobbySnapshot, filter: LobbyFilterId): LobbySnapshot {
   const { user } = snapshot;
   let { clubs, tables } = snapshot;
@@ -151,10 +170,31 @@ export async function fetchLobbySnapshot(
   filter: LobbyFilterId,
 ): Promise<LobbySnapshot> {
   await delay(550 + Math.floor(Math.random() * 450));
+
+  const remoteTables = await fetchTablesList();
+  const usingApiTables = remoteTables !== null;
+  const tables: TableCardModel[] = usingApiTables
+    ? remoteTables
+    : [...MOCK_TABLES];
+  const tableCountsByClub = usingApiTables
+    ? tableCountByClubFromList(remoteTables)
+    : mockActiveTableCountByClub();
+
+  const remote = await fetchClubsList();
+  const clubs: ClubCardModel[] = remote
+    ? remote.map((c) => ({
+        id: c.id,
+        name: c.name,
+        memberCount: c.memberCount,
+        activeTables: tableCountsByClub.get(c.id) ?? 0,
+        membership: c.membership,
+      }))
+    : [...MOCK_CLUBS];
+
   const base: LobbySnapshot = {
     user: MOCK_USER,
-    clubs: [...MOCK_CLUBS],
-    tables: [...MOCK_TABLES],
+    clubs,
+    tables,
   };
   return applyFilter(base, filter);
 }
