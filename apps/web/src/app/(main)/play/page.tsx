@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { headsUpRunoutAllIn, type HeadsUpRunout } from "@telegram-poker/poker-engine";
+import { headsUpRunoutAllIn, type HeadsUpRunout } from "@/lib/poker-engine";
 import { CardFace } from "@/components/card-face";
 
 export default function PlayPage() {

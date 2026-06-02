@@ -6,10 +6,9 @@ Monorepo aligned with `telegram_poker_platform_development_plan.md`.
 
 | Path | Purpose |
 |------|---------|
-| `apps/web` | Next.js (App Router) — Mini App UI |
+| `apps/web` | Next.js — lobby (Phase 3), **`/play`**, TanStack Query, `src/lib/poker-engine`, `src/features/lobby` |
 | `apps/server` | NestJS — API + future Socket.IO |
 | `packages/shared` | Shared TypeScript types |
-| `packages/poker-engine` | Deck, hand evaluation, local heads-up runout |
 
 ## Developing without Telegram
 
@@ -17,10 +16,10 @@ Monorepo aligned with `telegram_poker_platform_development_plan.md`.
 - Use **`/play`** for a local heads-up hand runout (deck + hand evaluation in the browser). No Mini App and no API session required.
 - Telegram login can be added later without changing that flow.
 
-## Phase 1 (current)
+## Phase 1–3 (current)
 
-- App shell with bottom navigation (Lobby / Play / Tables / Profile)
-- NestJS with MongoDB + Redis wiring and `GET /health`
+- **Phase 1:** App shell, bottom navigation, Nest `GET /health`, in-browser poker engine on **`/play`**
+- **Phase 3:** Lobby UI — header, balance, quick actions, **TanStack Query** + mock API, filters, club & table cards, skeletons, empty states, placeholder **`/clubs/[clubId]`**
 
 ## Prerequisites
 
@@ -45,7 +44,9 @@ Monorepo aligned with `telegram_poker_platform_development_plan.md`.
    npm install
    ```
 
-   Prefer **`npm run dev:web`** from the root as well. If you run `npm run dev` inside `apps/web` only, run `npm install` from the root first so `@telegram-poker/*` resolves (or rely on the `tsconfig` path aliases added for the web app).
+   Prefer **`npm run dev:web`** from the root as well. If you run `npm run dev` inside `apps/web` only, run `npm install` from the root first so `@telegram-poker/*` resolves.
+
+   **Dev server:** `npm run dev:web` uses **`next dev` (webpack)** so hoisted `react` / TanStack / workspace packages resolve correctly. **`npm run dev:turbo`** (`next dev --turbopack`) often breaks on Windows + npm workspaces because Turbopack will not load modules outside the `apps/web` project root, even with path aliases — avoid turbo for local dev unless you move deps under `apps/web/node_modules`.
 
 3. Run apps (two terminals):
 
@@ -59,4 +60,4 @@ Monorepo aligned with `telegram_poker_platform_development_plan.md`.
 
 ## Roadmap (plan §12)
 
-Work proceeds phase-by-phase. Telegram Mini App auth is optional for local work — use `/play` in the browser first. Planned order: **2** Telegram auth (when you want it) → **3** Lobby data → … through **12** polish.
+Work proceeds phase-by-phase. Telegram auth is optional for local work. **Phase 3** lobby uses mock data until the API exists. Planned: **2** Telegram auth (optional) → **4** Profile → **5** Clubs (replace mocks) → … through **12** polish.
