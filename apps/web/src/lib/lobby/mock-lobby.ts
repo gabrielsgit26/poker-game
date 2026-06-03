@@ -215,10 +215,20 @@ export async function fetchLobbySnapshot(
         } else {
           total = p;
         }
+        const photo =
+          me.user.telegramPhotoUrl === null ||
+          me.user.telegramPhotoUrl === undefined
+            ? null
+            : String(me.user.telegramPhotoUrl).trim();
+        const telegramPhotoUrl =
+          photo && photo.startsWith("https://")
+            ? photo.slice(0, 2048)
+            : null;
         user = {
           ...MOCK_USER,
           balanceChips: total,
           displayName: me.user.displayName?.trim() || MOCK_USER.displayName,
+          telegramPhotoUrl,
           ...(hasClubSplit ? { platformChips: p, clubChips: c } : {}),
         };
       }

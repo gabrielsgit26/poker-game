@@ -33,6 +33,7 @@ export interface AdminClubRowApi {
 export interface AdminUserRowApi {
   userId: string;
   displayName: string | null;
+  telegramPhotoUrl?: string | null;
   updatedAt: string | null;
 }
 

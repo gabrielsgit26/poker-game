@@ -1,6 +1,7 @@
 "use client";
 
 import type { PokerSeatUi, PokerTableBridge } from "@/features/tables/poker-table-ui-types";
+import { UserAvatar } from "@/components/user-avatar";
 import { MiniCard, OpponentCardBack } from "@/features/tables/poker-mini-card";
 
 export type PokerSeatHudProps = {
@@ -59,7 +60,7 @@ function DealerCrownBadge() {
 
 function BalancePill({ amount }: { amount: number }) {
   return (
-    <div className="flex min-w-[8.25rem] items-center justify-center gap-1.5 rounded-full border border-amber-400/90 bg-black/92 px-3 py-1 shadow-[0_2px_14px_rgba(0,0,0,0.55)]">
+    <div className="flex min-w-[6.2rem] items-center justify-center gap-1.5 rounded-full border border-amber-400/90 bg-black/92 px-3 py-1 shadow-[0_2px_14px_rgba(0,0,0,0.55)]">
       <ChipStackIcon />
       <span className="whitespace-nowrap text-xs font-bold tabular-nums tracking-tight text-white">
         $ {amount.toLocaleString()}
@@ -211,14 +212,26 @@ export function PokerSeatHud({
                 </svg>
               ) : null}
               <div
-                className={`flex h-[3.1rem] w-[3.1rem] items-center justify-center rounded-full text-[12px] font-bold ${seat.userId
-                  ? seat.folded
-                    ? "bg-zinc-800/85 text-zinc-500"
-                    : "bg-gradient-to-b from-zinc-600 to-zinc-900 text-zinc-50"
-                  : "bg-zinc-950 text-zinc-600"
-                  }`}
+                className={`relative flex h-[3.1rem] w-[3.1rem] overflow-hidden rounded-full text-[12px] font-bold ${
+                  seat.userId
+                    ? seat.folded
+                      ? "bg-zinc-800/85 text-zinc-500 opacity-70"
+                      : "bg-gradient-to-b from-zinc-600 to-zinc-900 text-zinc-50"
+                    : "bg-zinc-950 text-zinc-600"
+                }`}
               >
-                {seat.userId ? seat.userId.slice(0, 2).toUpperCase() : seatIndex + 1}
+                {seat.userId ? (
+                  <UserAvatar
+                    photoUrl={seat.telegramPhotoUrl}
+                    fallbackEmoji={seat.userId.slice(0, 2).toUpperCase()}
+                    label={isHero ? "You" : label}
+                    className="h-full w-full font-mono tracking-tight"
+                  />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center">
+                    {seatIndex + 1}
+                  </span>
+                )}
               </div>
             </div>
             {seat.isButton ? <DealerCrownBadge /> : null}

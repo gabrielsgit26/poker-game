@@ -6,6 +6,8 @@ export type ParsedTelegramWebAppUser = {
   telegramUserId: number;
   displayName: string;
   authDate: number;
+  /** HTTPS profile photo from `user.photo_url` when Telegram includes it (Mini App / WebApp user). */
+  telegramPhotoUrl: string | null;
 };
 
 function buildDataCheckString(params: URLSearchParams): string {
@@ -59,7 +61,13 @@ export function verifyTelegramWebAppInitData(
   const userJson = params.get('user');
   if (!userJson) return null;
 
-  let user: { id?: unknown; first_name?: unknown; last_name?: unknown; username?: unknown };
+  let user: {
+    id?: unknown;
+    first_name?: unknown;
+    last_name?: unknown;
+    username?: unknown;
+    photo_url?: unknown;
+  };
   try {
     user = JSON.parse(userJson) as typeof user;
   } catch {
@@ -77,9 +85,24 @@ export function verifyTelegramWebAppInitData(
     (un ? `@${un}` : '') ||
     `Player ${id}`;
 
+  let telegramPhotoUrl: string | null = null;
+  const rawPhoto = user.photo_url;
+  if (typeof rawPhoto === 'string') {
+    const u = rawPhoto.trim();
+    if (
+      u.length > 0 &&
+      u.length <= 2048 &&
+      u.startsWith('https://') &&
+      !u.includes('\0')
+    ) {
+      telegramPhotoUrl = u;
+    }
+  }
+
   return {
     telegramUserId: id,
     displayName: display.slice(0, 120),
     authDate,
+    telegramPhotoUrl,
   };
 }

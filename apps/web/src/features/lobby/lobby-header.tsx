@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { UserAvatar } from "@/components/user-avatar";
 import { formatChips } from "@/lib/format-chips";
 import type { LobbyUser } from "@/lib/lobby/types";
 
@@ -45,10 +46,15 @@ export function LobbyHeader({ user }: { user: LobbyUser }) {
       <div className="flex items-start gap-3">
         <Link
           href="/profile"
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-amber-500/40 bg-gradient-to-br from-amber-900/50 to-zinc-900 text-xl text-amber-200 transition hover:border-amber-400/60"
+          className="flex h-12 w-12 shrink-0 overflow-hidden rounded-full border border-amber-500/40 bg-gradient-to-br from-amber-900/50 to-zinc-900 text-xl text-amber-200 transition hover:border-amber-400/60"
           aria-label="Open profile"
         >
-          <span aria-hidden>{user.avatarEmoji}</span>
+          <UserAvatar
+            photoUrl={user.telegramPhotoUrl}
+            fallbackEmoji={user.avatarEmoji}
+            label=""
+            className="h-full w-full"
+          />
         </Link>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm text-zinc-400">

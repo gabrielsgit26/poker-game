@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AuthModule } from '../auth/auth.module';
 import { Club, ClubSchema } from '../clubs/schemas/club.schema';
 import {
   ClubMember,
@@ -18,6 +19,7 @@ import { TablesService } from './tables.service';
 
 @Module({
   imports: [
+    AuthModule,
     MongooseModule.forFeature([
       { name: ClubTable.name, schema: ClubTableSchema },
       { name: TableSeat.name, schema: TableSeatSchema },

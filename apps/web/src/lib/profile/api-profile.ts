@@ -10,6 +10,13 @@ function asNumber(v: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function normalizeTelegramPhotoUrl(v: unknown): string | null {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  if (s.length === 0 || !s.startsWith("https://")) return null;
+  return s.length > 2048 ? s.slice(0, 2048) : s;
+}
+
 function normalizeTxRow(r: Record<string, unknown>): TxRow {
   const bal = r.balanceAfter;
   return {
@@ -41,10 +48,11 @@ export function normalizeProfileSnapshot(raw: unknown): ProfileSnapshot {
     platformChips + clubChips,
   );
 
-  return {
+    return {
     user: {
       displayName: String(user.displayName ?? "Player").slice(0, 120),
       maskedTelegramRef: String(user.maskedTelegramRef ?? ""),
+      telegramPhotoUrl: normalizeTelegramPhotoUrl(user.telegramPhotoUrl),
       totalChips,
       platformChips: user.platformChips != null ? platformChips : undefined,
       clubChips: user.clubChips != null ? clubChips : undefined,

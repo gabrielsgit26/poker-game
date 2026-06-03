@@ -12,6 +12,10 @@ export class User {
   @Prop({ maxlength: 120 })
   displayName?: string;
 
+  /** Last known Telegram profile photo URL from validated WebApp initData (`user.photo_url`). */
+  @Prop({ type: String, maxlength: 2048, default: null })
+  telegramPhotoUrl!: string | null;
+
   /** Play-money platform wallet (deposits / withdrawals approved by admin). */
   @Prop({ default: 0 })
   platformBalanceChips!: number;

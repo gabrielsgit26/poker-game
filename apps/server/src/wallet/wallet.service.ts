@@ -6,6 +6,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, PipelineStage } from 'mongoose';
 import { User, UserDocument } from '../auth/user.schema';
+import { UsersService } from '../auth/users.service';
 import {
   PlatformWalletKind,
   PlatformWalletRequest,
@@ -32,6 +33,7 @@ export class WalletService {
     @InjectModel(PlatformWalletRequest.name)
     private readonly reqModel: Model<PlatformWalletRequestDocument>,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    private readonly users: UsersService,
   ) {}
 
   async getBalance(userId: string): Promise<number> {
@@ -168,8 +170,14 @@ export class WalletService {
       this.reqModel.find(filter).sort({ createdAt: -1 }).skip(sk).limit(lim).lean(),
       this.reqModel.countDocuments(filter),
     ]);
+    const rows = items.map((r) => this.toRow(r as Record<string, unknown>));
+    const ids = [...new Set(rows.map((x) => x.userId))];
+    const photoMap = await this.users.findTelegramPhotoUrlsByUserIds(ids);
     return {
-      items: items.map((r) => this.toRow(r as Record<string, unknown>)),
+      items: rows.map((x) => ({
+        ...x,
+        telegramPhotoUrl: photoMap.get(x.userId) ?? null,
+      })),
       total,
       skip: sk,
       limit: lim,

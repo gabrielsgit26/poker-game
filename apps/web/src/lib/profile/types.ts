@@ -4,6 +4,8 @@ export interface ProfileUser {
   displayName: string;
   /** Shown instead of raw Telegram ID until auth exists. */
   maskedTelegramRef: string;
+  /** HTTPS profile photo from Telegram WebApp `user.photo_url` when stored on the user. */
+  telegramPhotoUrl?: string | null;
   /** Total spendable chips (platform vault + clubs), same meaning as lobby `balanceChips`. */
   totalChips: number;
   /** When known (e.g. from `/auth/me`), shown under total like the lobby header. */

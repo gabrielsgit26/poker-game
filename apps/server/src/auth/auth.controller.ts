@@ -57,11 +57,18 @@ export class AuthController {
     );
     const clubChipsTotal = await this.users.sumActiveClubChips(o.userId);
     const totalChips = platformBalanceChips + clubChipsTotal;
+    const photoRaw = (o as { telegramPhotoUrl?: unknown }).telegramPhotoUrl;
+    const telegramPhotoUrl =
+      typeof photoRaw === 'string' && photoRaw.trim().length > 0
+        ? photoRaw.trim()
+        : null;
+
     return {
       authenticated: true as const,
       user: {
         userId: o.userId,
         displayName: o.displayName ?? null,
+        telegramPhotoUrl,
         createdAt: createdAt ? createdAt.toISOString() : null,
         updatedAt: updatedAt ? updatedAt.toISOString() : null,
         platformBalanceChips,
@@ -136,7 +143,11 @@ export class AuthController {
       throw new UnauthorizedException('Invalid or expired Telegram initData.');
     }
     const userId = `tg_${parsed.telegramUserId}`;
-    await this.users.findOrCreate(userId, parsed.displayName);
+    await this.users.findOrCreate(
+      userId,
+      parsed.displayName,
+      parsed.telegramPhotoUrl ?? undefined,
+    );
     const token = await this.auth.createSession(userId);
     const secure = process.env.NODE_ENV === 'production';
     res.cookie(POKER_SESSION_COOKIE, token, {

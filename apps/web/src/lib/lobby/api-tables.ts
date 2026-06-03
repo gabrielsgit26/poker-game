@@ -20,6 +20,8 @@ export function isApiRequestError(e: unknown): e is ApiRequestError {
 export interface TableSeatApi {
   seatIndex: number;
   userId: string | null;
+  /** Telegram profile photo URL when the server stored it for this user. */
+  telegramPhotoUrl?: string | null;
 }
 
 export type TableSocketActionApi = "check" | "fold";

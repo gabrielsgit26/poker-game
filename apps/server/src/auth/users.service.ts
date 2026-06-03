@@ -12,20 +12,63 @@ export class UsersService {
     private readonly memberModel: Model<ClubMemberDocument>,
   ) {}
 
-  async findOrCreate(userId: string, displayName?: string): Promise<UserDocument> {
+  async findOrCreate(
+    userId: string,
+    displayName?: string,
+    telegramPhotoUrl?: string | null,
+  ): Promise<UserDocument> {
     const existing = await this.userModel.findOne({ userId }).exec();
     if (existing) {
+      let dirty = false;
       if (displayName && displayName !== existing.displayName) {
         existing.displayName = displayName;
-        await existing.save();
+        dirty = true;
       }
+      if (
+        typeof telegramPhotoUrl === 'string' &&
+        telegramPhotoUrl.length > 0 &&
+        telegramPhotoUrl !== existing.telegramPhotoUrl
+      ) {
+        existing.telegramPhotoUrl = telegramPhotoUrl;
+        dirty = true;
+      }
+      if (dirty) await existing.save();
       return existing;
     }
-    return this.userModel.create({ userId, displayName });
+    return this.userModel.create({
+      userId,
+      displayName,
+      ...(typeof telegramPhotoUrl === 'string' && telegramPhotoUrl.length > 0
+        ? { telegramPhotoUrl }
+        : {}),
+    });
   }
 
   async findByUserId(userId: string): Promise<UserDocument | null> {
     return this.userModel.findOne({ userId }).exec();
+  }
+
+  /** Profile photos for table / lobby UIs (batched). */
+  async findTelegramPhotoUrlsByUserIds(
+    userIds: string[],
+  ): Promise<Map<string, string | null>> {
+    const out = new Map<string, string | null>();
+    if (userIds.length === 0) return out;
+    const unique = [...new Set(userIds)];
+    for (const id of unique) out.set(id, null);
+    const rows = await this.userModel
+      .find({ userId: { $in: unique } })
+      .select({ userId: 1, telegramPhotoUrl: 1 })
+      .lean();
+    for (const r of rows) {
+      const raw = r.telegramPhotoUrl;
+      const url =
+        typeof raw === 'string' && raw.trim().startsWith('https://')
+          ? raw.trim()
+          : null;
+      out.set(r.userId, url);
+    }
+    return out;
   }
 
   /** Sum of ACTIVE club membership chip wallets for this user (off-table club chips). */

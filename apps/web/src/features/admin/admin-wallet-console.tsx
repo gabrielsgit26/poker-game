@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n/i18n-context";
 import { notifyError, notifySuccess } from "@/lib/notifications/notify";
+import { UserAvatar } from "@/components/user-avatar";
 import {
   DashboardListSkeleton,
   DashboardPanel,
@@ -152,7 +153,19 @@ export function AdminWalletConsole() {
                     <td className="whitespace-nowrap px-3 py-2 font-mono text-[11px] text-zinc-400">
                       {r.createdAt ? new Date(r.createdAt).toLocaleString() : "—"}
                     </td>
-                    <td className="max-w-[10rem] truncate px-3 py-2 font-mono text-[11px] text-zinc-300">{r.userId}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex min-w-0 max-w-[14rem] items-center gap-2">
+                        <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-zinc-800 ring-1 ring-white/10">
+                          <UserAvatar
+                            photoUrl={r.telegramPhotoUrl}
+                            fallbackEmoji={r.userId.slice(0, 2).toUpperCase()}
+                            label={r.userId}
+                            className="h-full w-full font-mono text-[10px] font-bold text-zinc-300"
+                          />
+                        </div>
+                        <span className="truncate font-mono text-[11px] text-zinc-300">{r.userId}</span>
+                      </div>
+                    </td>
                     <td className="px-3 py-2 text-zinc-200">{r.kind === "DEPOSIT" ? "Deposit" : "Withdrawal"}</td>
                     <td className="px-3 py-2 text-right font-semibold tabular-nums text-zinc-100">{formatChips(r.amount)}</td>
                     <td className="px-3 py-2">

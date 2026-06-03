@@ -8,6 +8,7 @@ import { notifyError, notifySuccess } from "@/lib/notifications/notify";
 import { AdminLedgerActivitySection } from "@/features/admin/admin-ledger-activity-section";
 import { AdminSignupActivitySection } from "@/features/admin/admin-signup-activity-section";
 import { AdminWalletConsole } from "@/features/admin/admin-wallet-console";
+import { UserAvatar } from "@/components/user-avatar";
 import {
   DashboardEmptyState,
   DashboardFooterNav,
@@ -418,16 +419,23 @@ export function AdminDashboardView() {
               <ul className="max-h-[min(60vh,28rem)] space-y-2 overflow-y-auto overscroll-contain pr-0.5 [-webkit-overflow-scrolling:touch]">
                 {usersQ.data.items.map((u) => {
                   const initials = dashboardInitials(u.displayName, u.userId);
+                  const photo =
+                    u.telegramPhotoUrl &&
+                    u.telegramPhotoUrl.trim().startsWith("https://")
+                      ? u.telegramPhotoUrl.trim()
+                      : null;
                   return (
                     <li
                       key={u.userId}
                       className="flex min-h-[4rem] items-center gap-4 rounded-xl border border-white/[0.06] bg-zinc-900/30 px-4 py-3 sm:px-5"
                     >
-                      <div
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-600/30 to-zinc-800 text-[12px] font-semibold text-amber-50 ring-1 ring-white/[0.08]"
-                        aria-hidden
-                      >
-                        {initials}
+                      <div className="flex h-11 w-11 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-amber-600/30 to-zinc-800 ring-1 ring-white/[0.08]">
+                        <UserAvatar
+                          photoUrl={photo}
+                          fallbackEmoji={initials}
+                          label={u.displayName?.trim() || u.userId}
+                          className="h-full w-full text-[12px] font-semibold text-amber-50"
+                        />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[14px] font-semibold text-zinc-100">

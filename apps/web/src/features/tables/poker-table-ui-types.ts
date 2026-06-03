@@ -12,6 +12,7 @@ export interface PokerAllowedAction {
 export interface PokerSeatUi {
   seatIndex: number;
   userId: string | null;
+  telegramPhotoUrl: string | null;
   stack: number | null;
   streetPut: number;
   folded: boolean;

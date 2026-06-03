@@ -6,6 +6,8 @@ export type AuthMeResponse =
       user: {
         userId: string;
         displayName: string | null;
+        /** HTTPS URL from Telegram Mini App when the server has stored it. */
+        telegramPhotoUrl?: string | null;
         createdAt: string | null;
         updatedAt: string | null;
         /** Platform play-money wallet (admin-approved deposits / withdrawals). */

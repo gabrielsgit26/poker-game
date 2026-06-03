@@ -6,6 +6,8 @@ export type WalletRequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELL
 export interface WalletRequestRow {
   id: string;
   userId: string;
+  /** Present on admin list responses when the server can resolve the user. */
+  telegramPhotoUrl?: string | null;
   kind: WalletRequestKind;
   amount: number;
   status: WalletRequestStatus;

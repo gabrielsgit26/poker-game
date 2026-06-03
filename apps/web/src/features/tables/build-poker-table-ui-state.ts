@@ -24,6 +24,11 @@ export function buildPokerTableUiState(
   for (let i = 0; i < n; i++) {
     const row = seats.find((s) => s.seatIndex === i);
     const uid = row?.userId ?? null;
+    const rawPhoto = row && "telegramPhotoUrl" in row ? (row as { telegramPhotoUrl?: unknown }).telegramPhotoUrl : null;
+    const telegramPhotoUrl =
+      typeof rawPhoto === "string" && rawPhoto.trim().startsWith("https://")
+        ? rawPhoto.trim()
+        : null;
     const h = holdem?.seats[String(i)];
     const rev = holdem?.revealedHoles?.[String(i)] as [string, string] | undefined;
     /** Seated but not in engine hand (e.g. busted / sitting out) → show 0; server also sends shell rows. */
@@ -31,6 +36,7 @@ export function buildPokerTableUiState(
     seatUis.push({
       seatIndex: i,
       userId: uid,
+      telegramPhotoUrl: uid ? telegramPhotoUrl : null,
       stack,
       streetPut: h?.streetPut ?? 0,
       folded: h?.folded ?? false,

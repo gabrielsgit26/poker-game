@@ -29,6 +29,7 @@ import type {
   HoldemClientAction,
   HoldemPublicSnapshot,
 } from '@telegram-poker/shared/poker-engine';
+import { UsersService } from '../auth/users.service';
 import { TableGateway } from './table.gateway';
 import { HoldemCoordinator } from './holdem-coordinator';
 import { REDIS_CLIENT } from '../redis/redis.module';
@@ -70,6 +71,8 @@ export interface TableListRow {
 export interface TableSeatRow {
   seatIndex: number;
   userId: string | null;
+  /** From `users.telegramPhotoUrl` when the seated account has a stored Telegram photo. */
+  telegramPhotoUrl: string | null;
 }
 
 export type TableSocketAction = 'check' | 'fold';
@@ -199,6 +202,7 @@ export class TablesService implements OnModuleInit, OnModuleDestroy {
     @Inject(forwardRef(() => HoldemCoordinator))
     private readonly holdem: HoldemCoordinator,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    private readonly users: UsersService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -311,9 +315,27 @@ export class TablesService implements OnModuleInit, OnModuleDestroy {
       seats.push({
         seatIndex: i,
         userId: bySeat.get(i) ?? null,
+        telegramPhotoUrl: null,
       });
     }
-    return seats;
+    return this.enrichSeatsWithTelegramPhotos(seats);
+  }
+
+  private async enrichSeatsWithTelegramPhotos(
+    seats: TableSeatRow[],
+  ): Promise<TableSeatRow[]> {
+    const ids = [
+      ...new Set(
+        seats.map((s) => s.userId).filter((u): u is string => Boolean(u?.length)),
+      ),
+    ];
+    if (ids.length === 0) return seats;
+    const map = await this.users.findTelegramPhotoUrlsByUserIds(ids);
+    return seats.map((s) => ({
+      ...s,
+      telegramPhotoUrl:
+        s.userId != null ? map.get(s.userId) ?? null : null,
+    }));
   }
 
   private turnDeadlineKey(tableId: string): string {

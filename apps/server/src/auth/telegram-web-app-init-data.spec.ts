@@ -36,6 +36,22 @@ describe('verifyTelegramWebAppInitData', () => {
     expect(r).not.toBeNull();
     expect(r!.telegramUserId).toBe(424242);
     expect(r!.displayName).toContain('Ada');
+    expect(r!.telegramPhotoUrl).toBeNull();
+  });
+
+  it('parses user photo_url when present', () => {
+    const userWithPhoto = JSON.stringify({
+      id: 424242,
+      first_name: 'Ada',
+      photo_url: 'https://cdn.example.com/telegram/avatar.jpg',
+    });
+    const initData = buildSignedInitData(botToken, {
+      user: userWithPhoto,
+      auth_date: authDate,
+    });
+    const r = verifyTelegramWebAppInitData(initData, botToken);
+    expect(r).not.toBeNull();
+    expect(r!.telegramPhotoUrl).toBe('https://cdn.example.com/telegram/avatar.jpg');
   });
 
   it('rejects wrong bot token', () => {

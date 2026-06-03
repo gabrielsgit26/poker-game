@@ -42,6 +42,8 @@ export interface ProfileTxDto {
 export interface ProfileUserDto {
   displayName: string;
   maskedTelegramRef: string;
+  /** Telegram profile image URL when known (from last Mini App sign-in). */
+  telegramPhotoUrl: string | null;
   accountStatus: 'ACTIVE' | 'SUSPENDED';
   totalChips: number;
   platformChips: number;
@@ -89,7 +91,11 @@ export class ProfileService {
     if (!user) {
       throw new NotFoundException('User not found.');
     }
-    const o = user.toObject() as { userId: string; displayName?: string };
+    const o = user.toObject() as {
+      userId: string;
+      displayName?: string;
+      telegramPhotoUrl?: string | null;
+    };
     const platformChips = Math.max(
       0,
       Math.floor(Number((o as { platformBalanceChips?: number }).platformBalanceChips) || 0),
@@ -110,10 +116,17 @@ export class ProfileService {
     const netRaw = netAgg[0]?.s;
     const netChips = Math.floor(Number(netRaw) || 0);
 
+    const photoRaw = o.telegramPhotoUrl;
+    const telegramPhotoUrl =
+      typeof photoRaw === 'string' && photoRaw.trim().length > 0
+        ? photoRaw.trim()
+        : null;
+
     return {
       user: {
         displayName: (o.displayName?.trim() || o.userId).slice(0, 120),
         maskedTelegramRef: maskTelegramRef(o.userId),
+        telegramPhotoUrl,
         accountStatus: 'ACTIVE',
         totalChips,
         platformChips,

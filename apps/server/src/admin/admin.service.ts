@@ -33,6 +33,8 @@ export interface AdminClubRowDto {
 export interface AdminUserRowDto {
   userId: string;
   displayName: string | null;
+  /** Telegram profile photo when stored on the user (HTTPS URL). */
+  telegramPhotoUrl: string | null;
   /** ISO 8601 — last profile activity (`updatedAt`, sort key for this list). */
   updatedAt: string | null;
 }
@@ -210,14 +212,20 @@ export class AdminService {
       .sort({ updatedAt: -1 })
       .skip(sk)
       .limit(cap)
-      .select({ userId: 1, displayName: 1, updatedAt: 1 })
+      .select({ userId: 1, displayName: 1, telegramPhotoUrl: 1, updatedAt: 1 })
       .lean();
     const items = rows.map((r) => {
       const u = (r as { updatedAt?: Date }).updatedAt;
+      const rawPhoto = (r as { telegramPhotoUrl?: unknown }).telegramPhotoUrl;
+      const telegramPhotoUrl =
+        typeof rawPhoto === 'string' && rawPhoto.trim().startsWith('https://')
+          ? rawPhoto.trim()
+          : null;
       return {
         userId: r.userId,
         displayName:
           typeof r.displayName === 'string' && r.displayName.trim() ? r.displayName.trim() : null,
+        telegramPhotoUrl,
         updatedAt: u instanceof Date ? u.toISOString() : null,
       };
     });
