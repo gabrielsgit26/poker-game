@@ -1,13 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ClubBalances } from "@/features/profile/club-balances";
 import { ProfileHeader } from "@/features/profile/profile-header";
 import { ProfileSkeleton } from "@/features/profile/profile-skeleton";
 import { StatsCards } from "@/features/profile/stats-cards";
-import { TransactionList } from "@/features/profile/transaction-list";
-import { fetchProfileSnapshot } from "@/lib/profile/api-profile";
+import {
+  PROFILE_TX_PAGE_SIZE,
+  TransactionList,
+} from "@/features/profile/transaction-list";
+import {
+  fetchProfileSnapshot,
+  fetchProfileTransactionsPage,
+} from "@/lib/profile/api-profile";
 import { hasAuthApi } from "@/lib/dev-api";
 import { useAuthSession } from "@/providers/auth-context";
 
@@ -16,11 +23,29 @@ export function ProfileView() {
   const sessionOk =
     !skipGate && ready && me !== null && me.authenticated === true;
 
+  const [txSkip, setTxSkip] = useState(0);
+
   const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: ["profile"],
     queryFn: fetchProfileSnapshot,
     enabled: sessionOk,
   });
+
+  const txQuery = useQuery({
+    queryKey: ["profile", "transactions", txSkip, PROFILE_TX_PAGE_SIZE],
+    queryFn: () => fetchProfileTransactionsPage(txSkip, PROFILE_TX_PAGE_SIZE),
+    enabled: sessionOk,
+  });
+
+  useEffect(() => {
+    const total = txQuery.data?.total ?? 0;
+    if (total === 0) {
+      setTxSkip(0);
+      return;
+    }
+    const maxSkip = Math.max(0, total - PROFILE_TX_PAGE_SIZE);
+    setTxSkip((s) => (s > maxSkip ? maxSkip : s));
+  }, [txQuery.data?.total]);
 
   if (!hasAuthApi()) {
     return (
@@ -72,7 +97,20 @@ export function ProfileView() {
       <ProfileHeader user={data.user} />
       <StatsCards stats={data.stats} />
       <ClubBalances rows={data.clubBalances} />
-      <TransactionList rows={data.transactions} />
+      <TransactionList
+        rows={txQuery.data?.items ?? []}
+        total={txQuery.data?.total ?? 0}
+        skip={txSkip}
+        limit={PROFILE_TX_PAGE_SIZE}
+        isPending={txQuery.isPending}
+        isFetching={txQuery.isFetching}
+        isError={txQuery.isError}
+        errorMessage={
+          txQuery.error instanceof Error ? txQuery.error.message : undefined
+        }
+        onRetry={() => txQuery.refetch()}
+        onSkipChange={setTxSkip}
+      />
       <div className="flex flex-col gap-2">
         <Link
           href="/settings"

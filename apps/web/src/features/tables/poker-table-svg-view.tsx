@@ -17,7 +17,6 @@ import {
   IconChipMeta,
   IconCloseTable,
   IconLeaveSeat,
-  IconLiveDot,
   IconLobby,
   IconPlayingCards,
   IconSettings,

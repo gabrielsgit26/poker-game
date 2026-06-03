@@ -90,8 +90,6 @@ export function PokerSeatHud({
     !isHero &&
     !holes;
 
-  const hasHoleVisual = showBacks || Boolean(holes);
-
   const label = seat.userId
     ? seat.userId.length > 14
       ? `${seat.userId.slice(0, 13)}…`
@@ -118,7 +116,7 @@ export function PokerSeatHud({
       : isBottomPole
         ? "left-15 z-20 top-1/2 -translate-y-1/2"
         : isRightSide ? "right-full top-1/2 z-20 mr-1 -translate-y-1/2"
-          : "left-full top-1/2 z-20 ml-1 -translate-y-1/2"
+          : "left-full top-1/2 z-20 ml-1 -translate-y-1/2";
 
   const holeFan = showBacks || holes ? (
     <div className={`pointer-events-none absolute ${holeFanPositionClass}`} aria-hidden>
@@ -142,6 +140,7 @@ export function PokerSeatHud({
     <div
       className={`pointer-events-auto absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center ${widthClass}`}
       style={{ left: `${norm.x * 100}%`, top: `${norm.y * 100}%` }}
+      data-max-players={maxPlayers}
     >
       <p className="max-w-[min(100%,11rem)] truncate px-1 text-center text-[11px] font-semibold tracking-tight text-zinc-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
         {isHero ? "You" : label}

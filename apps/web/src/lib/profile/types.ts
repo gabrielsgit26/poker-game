@@ -41,5 +41,13 @@ export interface ProfileSnapshot {
   user: ProfileUser;
   clubBalances: ClubBalanceRow[];
   stats: ProfileStats;
+  /** Legacy: snapshot may omit rows; use `GET /profile/transactions` for paging. */
   transactions: TxRow[];
+}
+
+export interface ProfileTransactionsPage {
+  items: TxRow[];
+  total: number;
+  skip: number;
+  limit: number;
 }
