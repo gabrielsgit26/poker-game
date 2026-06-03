@@ -6,6 +6,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
 } from '@nestjs/common';
 import type { Request } from 'express';
@@ -31,6 +32,34 @@ export class AdminController {
   async overview(@Req() req: Request) {
     this.assertPlatformAdmin(req);
     return this.admin.getOverview();
+  }
+
+  /** Club directory page with active member counts (platform admin). */
+  @Get('clubs')
+  async clubDirectory(
+    @Req() req: Request,
+    @Query('limit') limit?: string,
+    @Query('skip') skip?: string,
+  ) {
+    this.assertPlatformAdmin(req);
+    const lim = limit != null ? Number.parseInt(limit, 10) : 50;
+    const sk = skip != null ? Number.parseInt(skip, 10) : 0;
+    return this.admin.listClubs(
+      Number.isFinite(lim) ? lim : 50,
+      Number.isFinite(sk) ? sk : 0,
+    );
+  }
+
+  /** Users page (newest `updatedAt` first). */
+  @Get('users')
+  async users(@Req() req: Request, @Query('limit') limit?: string, @Query('skip') skip?: string) {
+    this.assertPlatformAdmin(req);
+    const lim = limit != null ? Number.parseInt(limit, 10) : 50;
+    const sk = skip != null ? Number.parseInt(skip, 10) : 0;
+    return this.admin.listUsers(
+      Number.isFinite(lim) ? lim : 50,
+      Number.isFinite(sk) ? sk : 0,
+    );
   }
 
   @Post('clubs/:clubId/members/:targetUserId/chip-grant')

@@ -13,7 +13,7 @@ This file tracks **MVP roadmap phases** (plan §12). “Done” means good enoug
 | **7** | Poker engine | **Done** | `packages/shared/poker-engine` — NL MVP (side pots / full all-in tree: partial). |
 | **8** | Realtime gameplay | **Done** | Socket.IO, `gameAction`, `tableState`, holdem snapshot, clock + engine timeout path. Event names differ from plan §8 (optional rename later). |
 | **9** | Wallet / credits | **Done (MVP)** | Club chip wallet, buy-in/leave + **`chip_ledger`**, manager adjust, cash-out requests, CSV export, **`PLATFORM_ADJUST`** via **`POST /admin/clubs/:clubId/members/:userId/chip-grant`** (env **`PLATFORM_ADMIN_USER_IDS`**), **`isPlatformAdmin`** on **`GET /auth/me`**. |
-| **10** | Dashboards | **In progress** | **`/manager`** — clubs where viewer is OWNER/MANAGER with pending join / cash-out counts + deep links. **`/admin`** — overview counts + platform chip grant form. Profile links. **Todo:** richer tabs (plan §6.7–6.8), charts, server reports. |
+| **10** | Dashboards | **In progress** | **`/manager`** / **`/admin`** — professional **console** layout (ambient background, executive header, segmented tabs, KPI tiles with locale numbers, section headers, data rows with hover affordance, shared footer). Admin grants use a responsive form grid. **Todo:** charts, server reports, pagination (plan §6.7–6.8). |
 | **11** | Security / anti-cheat | **Partial** | Private club socket gate; **Todo:** rate limits, IP block, suspension, audit logs. |
 | **12** | Polish | **In progress** | **Live table:** SVG oval + HTML `PokerSeatHud`, CSS chip flights, outcome ticker, post-hand dwell. **Todo:** sounds, side-pot UI, optional Pixi layer, walkthrough. |
 
@@ -23,6 +23,6 @@ See root `.env.example`: set `NEXT_PUBLIC_API_URL=/api` and `API_PROXY_TARGET=ht
 
 ## Next steps (strictly one phase at a time)
 
-1. **Phase 10:** expand manager/admin dashboards (tabs, tables list, reports per plan §6.7–6.8).  
+1. **Phase 10:** reports/charts + pagination for admin/manager lists (plan §6.7–6.8); optional shared tab UI component.  
 2. **Phase 11** hardening, then **Phase 12** polish.  
 3. **Phase 9 optional:** paginated ledger export on server.

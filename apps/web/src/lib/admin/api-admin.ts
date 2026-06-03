@@ -19,6 +19,47 @@ export async function fetchAdminOverview(): Promise<AdminOverviewApi | null> {
   }
 }
 
+export interface AdminClubRowApi {
+  id: string;
+  name: string;
+  isPrivate: boolean;
+  memberCount: number;
+  updatedAt: string | null;
+}
+
+export interface AdminUserRowApi {
+  userId: string;
+  displayName: string | null;
+  updatedAt: string | null;
+}
+
+export async function fetchAdminClubs(): Promise<AdminClubRowApi[] | null> {
+  const base = apiBase();
+  if (!base) return null;
+  try {
+    const res = await credFetch(`${base}/admin/clubs`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return (await res.json()) as AdminClubRowApi[];
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchAdminUsers(limit = 100): Promise<AdminUserRowApi[] | null> {
+  const base = apiBase();
+  if (!base) return null;
+  try {
+    const res = await credFetch(
+      `${base}/admin/users?limit=${encodeURIComponent(String(limit))}`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as AdminUserRowApi[];
+  } catch {
+    return null;
+  }
+}
+
 export async function postAdminChipGrant(
   clubId: string,
   targetUserId: string,
