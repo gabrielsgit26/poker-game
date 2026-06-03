@@ -152,7 +152,7 @@ export function buildPokerTableUiState(
   const rawPot = holdem?.pot ?? 0;
   const payoutTotal =
     holdem?.phase === "complete" && holdem.payouts != null
-      ? holdem.payouts.reduce((acc, p) => acc + p.amount, 0)
+      ? holdem.payouts.reduce((acc: number, p: { amount: number }) => acc + p.amount, 0)
       : null;
   const potDisplay =
     holdem?.phase === "complete" && payoutTotal != null
