@@ -12,6 +12,20 @@ import {
 } from "react";
 import { buildPokerTableUiState } from "@/features/tables/build-poker-table-ui-state";
 import { formatCard, isRedSuit } from "@/features/tables/poker-mini-card";
+import { PokerRaisePanel } from "@/features/tables/poker-raise-panel";
+import {
+  IconChipMeta,
+  IconCloseTable,
+  IconLeaveSeat,
+  IconLiveDot,
+  IconLobby,
+  IconPlayingCards,
+  IconPractice,
+  IconSettings,
+  IconTableBack,
+  IconTableMenu,
+  IconTablesGrid,
+} from "@/features/tables/poker-table-header-icons";
 import type { PokerAllowedAction, PokerTableBridge } from "@/features/tables/poker-table-ui-types";
 import { PokerSeatHud } from "@/features/tables/poker-seat-hud";
 import type { TableDetailApi } from "@/lib/lobby/api-tables";
@@ -115,6 +129,7 @@ export function PokerTableSvgView({
 }: PokerTableSvgViewProps) {
   const feltGradId = useId().replace(/:/g, "");
   const wrapRef = useRef<HTMLDivElement>(null);
+  const tableMenuRef = useRef<HTMLDetailsElement>(null);
   /** Latest table payload for deferred blind flights (holdem can lag one frame behind handSeq). */
   const tableDataRef = useRef(data);
   tableDataRef.current = data;
@@ -215,6 +230,10 @@ export function PokerTableSvgView({
     else bridge.onEngineAction({ type: "raise_to", amount: n });
     setRaiseOpen(false);
   }, [bridge, raiseAmt, raiseMode, ui.raisePanelMax, ui.raisePanelMin]);
+
+  const closeTableMenu = useCallback(() => {
+    tableMenuRef.current?.removeAttribute("open");
+  }, []);
 
   const turnFrac =
     ui.turnDeadlineMs && ui.activeSeatIndex != null && ui.turnTimerTotalMs > 0
@@ -635,8 +654,8 @@ export function PokerTableSvgView({
                 <text x="32.5" y="29" textAnchor="middle" fill="#cbd5e1" fontSize="2.15" fontWeight="600">
                   Pot Amt.
                 </text>
-                <text x="32.5" y="33.5" textAnchor="middle" fill="#fef9c3" fontSize="3" fontWeight="800">
-                  {`$${ui.potDisplay.toLocaleString()}`}
+                <text x="32.5" y="33.5" textAnchor="middle" fill="#fef9c3" fontSize="2.85" fontWeight="800">
+                  {`💰 $${ui.potDisplay.toLocaleString()}`}
                 </text>
                 {/* Community cards (above pot line in paint order = visually on felt below labels). */}
                 <g transform="translate(32.5, 53.5)">
@@ -779,76 +798,121 @@ export function PokerTableSvgView({
       </div>
 
       {/* Menu / table title — overlaid on top of full-screen table */}
-      <div className="pointer-events-none absolute left-0 z-50 right-0 top-0 z-40 pt-[env(safe-area-inset-top)]">
-        <header className="pointer-events-auto flex items-center justify-between gap-2 border-b border-white/10 bg-black/45 px-2 py-2 backdrop-blur-md">
-          <details className="relative">
-            <summary className="cursor-pointer list-none rounded-full border border-amber-500/40 bg-zinc-950/95 px-3 py-2 text-xs font-semibold text-amber-100 [&::-webkit-details-marker]:hidden">
-              Menu
+      <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 pt-[env(safe-area-inset-top)]">
+        <header className="pointer-events-auto flex items-center justify-between gap-2 border-b border-white/10 bg-black/50 px-2 py-2 backdrop-blur-md">
+          <details ref={tableMenuRef} className="relative">
+            <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full border border-amber-500/35 bg-zinc-950/95 text-amber-100 shadow-md transition hover:border-amber-400/55 hover:bg-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400/60 [&::-webkit-details-marker]:hidden">
+              <span className="sr-only">Table menu</span>
+              <IconTableMenu className="h-5 w-5" strokeWidth={2} />
             </summary>
-            <div className="absolute left-0 top-10 z-[60] w-44 rounded-xl border border-amber-500/25 bg-zinc-950/98 p-2 text-sm shadow-xl">
+            <div className="absolute left-0 top-11 z-[60] w-52 rounded-xl border border-amber-500/20 bg-zinc-950/[0.98] p-1.5 shadow-[0_16px_48px_rgba(0,0,0,0.55)] ring-1 ring-black/40">
               <button
                 type="button"
-                className="block w-full rounded-lg px-2 py-2 text-left text-zinc-200 hover:bg-white/5"
-                onClick={() => bridge.onNavigate("lobby")}
+                className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left text-sm text-zinc-100 transition hover:bg-white/[0.06]"
+                onClick={() => {
+                  closeTableMenu();
+                  bridge.onNavigate("lobby");
+                }}
               >
-                Lobby
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-zinc-900/90 text-amber-400/95">
+                  <IconLobby className="h-[18px] w-[18px]" />
+                </span>
+                <span className="min-w-0 font-medium leading-tight">Lobby</span>
               </button>
               <button
                 type="button"
-                className="block w-full rounded-lg px-2 py-2 text-left text-zinc-200 hover:bg-white/5"
-                onClick={() => bridge.onNavigate("tables")}
+                className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left text-sm text-zinc-100 transition hover:bg-white/[0.06]"
+                onClick={() => {
+                  closeTableMenu();
+                  bridge.onNavigate("tables");
+                }}
               >
-                All tables
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-zinc-900/90 text-amber-400/95">
+                  <IconTablesGrid className="h-[18px] w-[18px]" />
+                </span>
+                <span className="min-w-0 font-medium leading-tight">All tables</span>
               </button>
               <button
                 type="button"
-                className="block w-full rounded-lg px-2 py-2 text-left text-zinc-200 hover:bg-white/5"
-                onClick={() => bridge.onNavigate("play")}
+                className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left text-sm text-zinc-100 transition hover:bg-white/[0.06]"
+                onClick={() => {
+                  closeTableMenu();
+                  bridge.onNavigate("play");
+                }}
               >
-                Practice
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-zinc-900/90 text-emerald-400/95">
+                  <IconPractice className="h-[18px] w-[18px]" />
+                </span>
+                <span className="min-w-0 font-medium leading-tight">Practice</span>
               </button>
               <button
                 type="button"
-                className="block w-full rounded-lg px-2 py-2 text-left text-zinc-200 hover:bg-white/5"
-                onClick={() => bridge.onNavigate("settings")}
+                className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left text-sm text-zinc-100 transition hover:bg-white/[0.06]"
+                onClick={() => {
+                  closeTableMenu();
+                  bridge.onNavigate("settings");
+                }}
               >
-                Settings
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-zinc-900/90 text-zinc-300">
+                  <IconSettings className="h-[18px] w-[18px]" />
+                </span>
+                <span className="min-w-0 font-medium leading-tight">Settings</span>
               </button>
+              <div className="my-1 h-px bg-white/[0.08]" />
               <button
                 type="button"
-                className="mt-1 block w-full rounded-lg px-2 py-2 text-left text-rose-300 hover:bg-rose-950/40"
-                onClick={() => bridge.onCloseTable()}
+                className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left text-sm text-rose-200 transition hover:bg-rose-950/45"
+                onClick={() => {
+                  closeTableMenu();
+                  bridge.onCloseTable();
+                }}
               >
-                Close table
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-rose-500/35 bg-rose-950/50 text-rose-300">
+                  <IconCloseTable className="h-[18px] w-[18px]" />
+                </span>
+                <span className="min-w-0 font-semibold leading-tight">Close table</span>
               </button>
             </div>
           </details>
-          <div className="min-w-0 flex-1 text-center text-[10px] leading-tight text-zinc-200">
-            <div className="truncate font-semibold">{ui.tableName}</div>
-            <div className="text-zinc-500">
-              {ui.handSeq != null ? `Hand #${ui.handSeq}` : "—"} · {ui.blindsLabel}
+          <div className="min-w-0 flex-1 px-1 text-center text-[10px] leading-tight text-zinc-200">
+            <div className="flex items-center justify-center gap-1.5 truncate">
+              <IconPlayingCards className="h-3.5 w-3.5 shrink-0 text-amber-400/90" aria-hidden />
+              <span className="truncate font-semibold tracking-tight">{ui.tableName}</span>
+            </div>
+            <div className="mt-0.5 flex items-center justify-center gap-1.5 text-zinc-500">
+              <IconChipMeta className="h-3 w-3 shrink-0 text-zinc-500" aria-hidden />
+              <span className="tabular-nums">
+                {ui.handSeq != null ? `Hand #${ui.handSeq}` : "—"} · {ui.blindsLabel}
+              </span>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1.5">
             <span
-              className={`rounded-full px-2 py-1 text-[9px] font-bold ${ui.liveReady ? "bg-emerald-950 text-emerald-200" : ui.live ? "bg-amber-950 text-amber-200" : "bg-zinc-800 text-zinc-500"
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1.5 text-[9px] font-bold tracking-wide ${ui.liveReady
+                  ? "border-emerald-500/30 bg-emerald-950/85 text-emerald-100"
+                  : ui.live
+                    ? "border-amber-500/25 bg-amber-950/80 text-amber-100"
+                    : "border-zinc-600/50 bg-zinc-900/90 text-zinc-400"
                 }`}
             >
+              <IconLiveDot live={ui.liveReady} connecting={ui.live && !ui.liveReady} />
               {ui.liveReady ? "Live" : ui.live ? "…" : "Off"}
             </span>
             <button
               type="button"
               onClick={() => bridge.onBack()}
-              className="rounded-full border border-zinc-600 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200"
+              aria-label="Back to tables"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-600/70 bg-zinc-900/95 text-zinc-100 shadow-sm transition hover:border-zinc-500 hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400"
             >
-              ←
+              <IconTableBack className="h-5 w-5" strokeWidth={2} />
             </button>
             <button
               type="button"
               onClick={() => bridge.onLeave()}
-              className="rounded-full border border-rose-500/50 bg-rose-950/80 px-2 py-1.5 text-xs font-semibold text-rose-100"
+              className="flex h-10 items-center gap-1.5 rounded-full border border-rose-500/45 bg-gradient-to-b from-rose-900/95 to-rose-950/95 px-2.5 pl-2 text-rose-50 shadow-sm transition hover:border-rose-400/60 hover:from-rose-800/95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400/70"
             >
-              Leave
+              <IconLeaveSeat className="h-[18px] w-[18px] shrink-0 text-rose-100" strokeWidth={2} />
+              <span className="pr-0.5 text-[11px] font-bold tracking-wide">Leave</span>
             </button>
           </div>
         </header>
@@ -873,10 +937,19 @@ export function PokerTableSvgView({
                       ? "bg-gradient-to-b from-rose-600 to-rose-900"
                       : a.id === "check" || a.id === "call"
                         ? "bg-gradient-to-b from-emerald-600 to-emerald-900"
-                        : "bg-gradient-to-b from-sky-600 to-sky-900"
+                        : "bg-gradient-to-b from-cyan-500 to-sky-800"
                     }`}
                 >
-                  {a.label}
+                  {a.id === "raise" || a.id === "bet" ? (
+                    <span className="flex flex-col items-center justify-center gap-0.5 leading-none">
+                      <span>{a.label}</span>
+                      <span className="text-[11px] font-bold text-white/85" aria-hidden>
+                        ▾
+                      </span>
+                    </span>
+                  ) : (
+                    a.label
+                  )}
                 </button>
               ))}
             </div>
@@ -892,79 +965,23 @@ export function PokerTableSvgView({
         </div>
       </footer>
 
-      {/* Raise / bet sheet */}
+      {/* Raise / bet panel — vertical presets + slider (reference: mobile club apps) */}
       {raiseOpen ? (
-        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-amber-500/30 bg-zinc-950/98 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl">
-          <div className="mx-auto max-w-lg space-y-3">
-            <p className="text-center text-sm font-bold text-amber-100">
-              {raiseMode === "bet" ? "Bet amount" : "Raise to"}
-            </p>
-            <input
-              type="number"
-              className="w-full rounded-lg border border-white/15 bg-black/70 px-3 py-2 text-right font-mono text-lg text-zinc-100"
-              value={raiseAmt}
-              onChange={(e) => setRaiseAmt(Number(e.target.value))}
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                className="rounded-lg bg-zinc-800 py-2 text-xs font-bold text-zinc-200"
-                onClick={() => setRaiseAmt(ui.raisePanelMin)}
-              >
-                Min
-              </button>
-              <button
-                type="button"
-                className="rounded-lg bg-zinc-800 py-2 text-xs font-bold text-zinc-200"
-                onClick={() =>
-                  setRaiseAmt(
-                    Math.min(ui.raisePanelMax, Math.max(ui.raisePanelMin, Math.floor(ui.pot / 2))),
-                  )
-                }
-              >
-                ½ Pot
-              </button>
-              <button
-                type="button"
-                className="rounded-lg bg-zinc-800 py-2 text-xs font-bold text-zinc-200"
-                onClick={() =>
-                  setRaiseAmt(Math.min(ui.raisePanelMax, Math.max(ui.raisePanelMin, ui.pot)))
-                }
-              >
-                Pot
-              </button>
-              <button
-                type="button"
-                className="rounded-lg bg-zinc-800 py-2 text-xs font-bold text-zinc-200"
-                onClick={() => {
-                  const my = ui.viewerSeatIndex != null ? ui.seats[ui.viewerSeatIndex] : null;
-                  if (my?.stack != null) {
-                    const v = my.stack + (my.streetPut ?? 0);
-                    setRaiseAmt(Math.min(ui.raisePanelMax, Math.max(ui.raisePanelMin, v)));
-                  }
-                }}
-              >
-                All-in
-              </button>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="flex-1 rounded-xl bg-amber-500 py-3 text-sm font-black text-zinc-950"
-                onClick={confirmRaise}
-              >
-                {raiseMode === "bet" ? "Confirm bet" : "Confirm raise"}
-              </button>
-              <button
-                type="button"
-                className="flex-1 rounded-xl border border-zinc-600 py-3 text-sm font-semibold text-zinc-300"
-                onClick={() => setRaiseOpen(false)}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+        <PokerRaisePanel
+          mode={raiseMode}
+          amount={raiseAmt}
+          onAmountChange={(n) => setRaiseAmt(n)}
+          onConfirm={confirmRaise}
+          onClose={() => setRaiseOpen(false)}
+          raisePanelMin={ui.raisePanelMin}
+          raisePanelMax={ui.raisePanelMax}
+          pot={ui.pot}
+          callAmount={ui.callAmount}
+          committed={
+            ui.viewerSeatIndex != null ? (ui.seats[ui.viewerSeatIndex]?.streetPut ?? 0) : 0
+          }
+          bigBlind={ui.bigBlind}
+        />
       ) : null}
     </div>
   );

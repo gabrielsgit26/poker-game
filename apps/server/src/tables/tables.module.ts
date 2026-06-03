@@ -5,6 +5,10 @@ import {
   ClubMember,
   ClubMemberSchema,
 } from '../clubs/schemas/club-member.schema';
+import {
+  ChipLedgerEntry,
+  ChipLedgerEntrySchema,
+} from '../clubs/schemas/chip-ledger.schema';
 import { ClubTable, ClubTableSchema } from './schemas/club-table.schema';
 import { TableSeat, TableSeatSchema } from './schemas/table-seat.schema';
 import { HoldemCoordinator } from './holdem-coordinator';
@@ -19,6 +23,7 @@ import { TablesService } from './tables.service';
       { name: TableSeat.name, schema: TableSeatSchema },
       { name: Club.name, schema: ClubSchema },
       { name: ClubMember.name, schema: ClubMemberSchema },
+      { name: ChipLedgerEntry.name, schema: ChipLedgerEntrySchema },
     ]),
   ],
   controllers: [TablesController],

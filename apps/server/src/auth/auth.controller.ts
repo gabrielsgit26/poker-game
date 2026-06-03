@@ -59,6 +59,7 @@ export class AuthController {
         createdAt: createdAt ? createdAt.toISOString() : null,
         updatedAt: updatedAt ? updatedAt.toISOString() : null,
       },
+      isPlatformAdmin: this.auth.isPlatformAdminUserId(o.userId),
     };
   }
 

@@ -18,6 +18,11 @@ import {
   ClubMember,
   ClubMemberDocument,
 } from '../clubs/schemas/club-member.schema';
+import {
+  ChipLedgerEntry,
+  ChipLedgerDocument,
+  type ChipLedgerKind,
+} from '../clubs/schemas/chip-ledger.schema';
 import { ClubTable, ClubTableDocument } from './schemas/club-table.schema';
 import { TableSeat, TableSeatDocument } from './schemas/table-seat.schema';
 import type {
@@ -187,6 +192,8 @@ export class TablesService implements OnModuleInit, OnModuleDestroy {
     @InjectModel(Club.name) private readonly clubModel: Model<ClubDocument>,
     @InjectModel(ClubMember.name)
     private readonly memberModel: Model<ClubMemberDocument>,
+    @InjectModel(ChipLedgerEntry.name)
+    private readonly chipLedgerModel: Model<ChipLedgerDocument>,
     @Inject(forwardRef(() => TableGateway))
     private readonly tableGateway: TableGateway,
     @Inject(forwardRef(() => HoldemCoordinator))
@@ -903,13 +910,56 @@ export class TablesService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** Credits club-room chips (e.g. cash-out from table stack). */
-  async creditMemberChips(clubId: string, userId: string, amount: number): Promise<void> {
+  async creditMemberChips(
+    clubId: string,
+    userId: string,
+    amount: number,
+    ledger?: {
+      kind: ChipLedgerKind;
+      tableId?: string | null;
+      note?: string | null;
+    },
+  ): Promise<void> {
     const n = Math.max(0, Math.floor(amount));
     if (n === 0) return;
     await this.memberModel.updateOne(
       { clubId, userId, status: 'ACTIVE' },
       { $inc: { chipBalance: n } },
     );
+    if (ledger) {
+      const balanceAfter = await this.getMemberChipBalance(clubId, userId);
+      await this.appendChipLedgerEntry(
+        clubId,
+        userId,
+        n,
+        balanceAfter,
+        ledger.kind,
+        { tableId: ledger.tableId, note: ledger.note },
+      );
+    }
+  }
+
+  private async appendChipLedgerEntry(
+    clubId: string,
+    userId: string,
+    delta: number,
+    balanceAfter: number,
+    kind: ChipLedgerKind,
+    opts?: { tableId?: string | null; note?: string | null },
+  ): Promise<void> {
+    try {
+      await this.chipLedgerModel.create({
+        clubId,
+        userId,
+        delta,
+        balanceAfter,
+        kind,
+        tableId: opts?.tableId ?? undefined,
+        note: opts?.note ?? undefined,
+      });
+    } catch (e) {
+      this.logger.warn(`chip_ledger write failed: ${(e as Error).message}`);
+    }
   }
 
   /**
@@ -917,6 +967,7 @@ export class TablesService implements OnModuleInit, OnModuleDestroy {
    */
   async debitBuyInsForHand(
     clubId: string,
+    tableId: string,
     rows: { userId: string; amount: number }[],
   ): Promise<void> {
     const done: { userId: string; amount: number }[] = [];
@@ -939,6 +990,15 @@ export class TablesService implements OnModuleInit, OnModuleDestroy {
           );
         }
         done.push({ userId: r.userId, amount: amt });
+        const balanceAfter = await this.getMemberChipBalance(clubId, r.userId);
+        await this.appendChipLedgerEntry(
+          clubId,
+          r.userId,
+          -amt,
+          balanceAfter,
+          'BUYIN_DEBIT',
+          { tableId },
+        );
       }
     } catch (e) {
       for (const d of done) {
@@ -1109,7 +1169,10 @@ export class TablesService implements OnModuleInit, OnModuleDestroy {
     await this.refreshTurnDeadline(tableId);
     await this.holdem.tryStartHand(tableId);
     if (cashOutStack > 0) {
-      await this.creditMemberChips(t.clubId, userId, cashOutStack);
+      await this.creditMemberChips(t.clubId, userId, cashOutStack, {
+        kind: 'CASHOUT_CREDIT',
+        tableId,
+      });
     }
     const detail = await this.getDetail(tableId, userId);
     await this.tableGateway.broadcastState(tableId);

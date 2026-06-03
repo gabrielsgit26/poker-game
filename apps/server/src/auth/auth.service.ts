@@ -41,4 +41,20 @@ export class AuthService {
       /* */
     }
   }
+
+  /**
+   * Comma-separated `PLATFORM_ADMIN_USER_IDS` in server env (e.g. `local-player,tg_123`).
+   * Used for platform-wide chip grants and `/admin` overview (Phase 9–10 MVP).
+   */
+  isPlatformAdminUserId(userId: string): boolean {
+    const raw = process.env.PLATFORM_ADMIN_USER_IDS?.trim();
+    if (!raw) return false;
+    const ids = new Set(
+      raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0),
+    );
+    return ids.has(userId);
+  }
 }

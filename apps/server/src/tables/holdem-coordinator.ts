@@ -214,7 +214,7 @@ export class HoldemCoordinator {
     });
 
     if (buyins.length > 0) {
-      await this.tablesService.debitBuyInsForHand(t.clubId, buyins);
+      await this.tablesService.debitBuyInsForHand(t.clubId, tableId, buyins);
     }
     try {
       await this.writeState(tableId, st);
@@ -223,7 +223,11 @@ export class HoldemCoordinator {
     } catch (err) {
       if (buyins.length > 0) {
         for (const b of buyins) {
-          await this.tablesService.creditMemberChips(t.clubId, b.userId, b.amount);
+          await this.tablesService.creditMemberChips(t.clubId, b.userId, b.amount, {
+            kind: 'BUYIN_ROLLBACK',
+            tableId,
+            note: 'Hand start rolled back',
+          });
         }
       }
       throw err;

@@ -177,3 +177,43 @@ html[data-table-theme="gold-room"] body {
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
   cursor: pointer;
 }
+
+/* Vertical raise slider (mobile raise sheet — Poker King–style). */
+.raise-vertical-slider {
+  writing-mode: vertical-lr;
+  direction: rtl;
+}
+
+.raise-vertical-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #5eead4, #0d9488);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.raise-vertical-slider::-webkit-slider-runnable-track {
+  width: 0.45rem;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #1e293b, #0f172a);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.raise-vertical-slider::-moz-range-thumb {
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #5eead4, #0d9488);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.raise-vertical-slider::-moz-range-track {
+  width: 0.45rem;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #1e293b, #0f172a);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}

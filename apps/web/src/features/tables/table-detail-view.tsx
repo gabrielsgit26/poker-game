@@ -135,6 +135,9 @@ export function TableDetailView({ tableId }: { tableId: string }) {
       toast.success("You took a seat.");
       void queryClient.invalidateQueries({ queryKey: ["lobby"] });
       void queryClient.invalidateQueries({ queryKey: ["tables"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["club", d.table.clubId, "chip-ledger"],
+      });
     },
     onError: (e: unknown) => {
       const msg = e instanceof Error ? e.message : "Could not join this seat.";
@@ -161,6 +164,9 @@ export function TableDetailView({ tableId }: { tableId: string }) {
       void queryClient.setQueryData(["table", tableId], d);
       void queryClient.invalidateQueries({ queryKey: ["lobby"] });
       void queryClient.invalidateQueries({ queryKey: ["tables"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["club", d.table.clubId, "chip-ledger"],
+      });
       toast.success("You left the seat.");
     },
     onError: (e: Error) => {

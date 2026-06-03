@@ -9,6 +9,8 @@ export type AuthMeResponse =
         createdAt: string | null;
         updatedAt: string | null;
       };
+      /** True when `userId` is listed in server `PLATFORM_ADMIN_USER_IDS`. */
+      isPlatformAdmin: boolean;
     }
   | { authenticated: false; userId: string };
 

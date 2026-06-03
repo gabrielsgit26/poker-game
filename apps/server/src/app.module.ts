@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { PokerUserMiddleware } from './auth/poker-user.middleware';
 import { ClubsModule } from './clubs/clubs.module';
@@ -14,7 +15,7 @@ import { TablesModule } from './tables/tables.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['.env', '../../.env'],
+      envFilePath: ['.env', '../../.env', '.env.local','../../.env.local'],
     }),
     MongooseModule.forRootAsync({
       useFactory: () => ({
@@ -28,6 +29,7 @@ import { TablesModule } from './tables/tables.module';
     AuthModule,
     ClubsModule,
     TablesModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],
