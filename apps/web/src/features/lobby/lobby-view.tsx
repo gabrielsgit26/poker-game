@@ -79,14 +79,11 @@ export function LobbyView() {
 
   return (
     <div className="mx-auto max-w-lg space-y-6 px-4 py-2 pb-4">
-      <p className="text-center text-[11px] text-zinc-500">
-        Phase 6 · clubs + tables from API when{" "}
-        <code className="text-zinc-600">NEXT_PUBLIC_API_URL</code> is set (fallback
-        mock otherwise)
-        {isFetching ? (
-          <span className="ml-2 text-amber-400/90">Refreshing…</span>
-        ) : null}
-      </p>
+      {isFetching ? (
+        <p className="text-center text-[11px] text-zinc-500">
+          <span className="text-amber-400/90">Refreshing…</span>
+        </p>
+      ) : null}
 
       <LobbyHeader user={data.user} />
       <QuickActions />

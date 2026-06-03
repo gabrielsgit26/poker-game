@@ -6,8 +6,8 @@ import { headsUpRunoutAllIn, type HeadsUpRunout } from "@/lib/poker-engine";
 import { CardFace } from "@/components/card-face";
 
 /**
- * `/play` — **offline lab**: heads-up all-in runout in the browser only (plan §3-day demo / engine QA).
- * **Real multiplayer** with clubs, seats, and Socket.IO is **`/tables/[tableId]`** (SVG/HTML table UI + Nest + Redis).
+ * Offline practice: heads-up all-in preflop runout in the browser.
+ * Multiplayer tables live at `/tables/[tableId]`.
  */
 export default function PlayPage() {
   const [run, setRun] = useState<HeadsUpRunout | null>(null);
@@ -20,14 +20,12 @@ export default function PlayPage() {
     <div className="mx-auto max-w-lg px-4">
       <header className="mb-6">
         <p className="text-xs font-medium uppercase tracking-widest text-emerald-400/90">
-          Offline lab — no API
+          Practice mode
         </p>
         <h1 className="mt-1 text-2xl font-semibold text-zinc-50">Heads-up runout</h1>
         <p className="mt-2 text-sm text-zinc-400">
-          This route is intentionally <strong>not</strong> the live club table. It runs a
-          two-player all-in preflop runout entirely in your browser to exercise the local
-          deck + evaluator. For real tables (SVG seat HUD + Nest + Redis), open a table from the
-          lobby under <strong>/tables/[tableId]</strong>.
+          Two-player preflop all-in runout in this browser only. For real tables with friends, open a
+          table from the lobby.
         </p>
         <Link
           href="/tables"

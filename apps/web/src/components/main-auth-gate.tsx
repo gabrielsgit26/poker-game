@@ -50,18 +50,17 @@ export function MainAuthGate({ children }: { children: React.ReactNode }) {
   if (me === null && !isPublicMainRoute(pathname)) {
     return (
       <div className="mx-auto max-w-md px-6 py-16 text-center">
-        <p className="text-sm font-medium text-zinc-200">Could not reach the API</p>
+        <p className="text-sm font-medium text-zinc-200">Could not reach the server</p>
         <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-          Check <code className="text-emerald-200/90">NEXT_PUBLIC_API_URL</code> and that the Nest
-          server is running. You can still use{" "}
+          Try again in a moment, or use{" "}
           <button
             type="button"
             className="text-amber-300 underline-offset-2 hover:underline"
             onClick={() => router.push("/play")}
           >
-            /play
+            Practice
           </button>{" "}
-          offline.
+          while offline.
         </p>
       </div>
     );

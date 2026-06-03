@@ -34,6 +34,12 @@ export class ClubsController {
     return this.clubsService.createClub(req.pokerUserId, name, isPrivate);
   }
 
+  /** Owner/manager: total ACTIVE member chips per club you administer (for manager dashboard). */
+  @Get('manager/chip-totals')
+  managerChipTotals(@Req() req: Request) {
+    return this.clubsService.getManagedClubChipTotals(req.pokerUserId);
+  }
+
   /** List pending join requests (club OWNER / MANAGER only). */
   @Get(':clubId/join-requests')
   joinRequests(@Param('clubId') clubId: string, @Req() req: Request) {

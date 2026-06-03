@@ -46,7 +46,7 @@ export function AdminSignupActivitySection() {
     <section className="mt-8 border-t border-white/[0.06] pt-6" aria-label="Signup activity">
       <DashboardSectionHeader
         title="New signups by day (UTC)"
-        description="From Mongo `createdAt` on user and club documents. Use for growth trends, not financial reporting."
+        description="New users and clubs created each day. For growth trends only."
         aside={
           <div className="flex flex-wrap gap-1" role="group" aria-label="Date range">
             {HORIZONS.map((d) => (

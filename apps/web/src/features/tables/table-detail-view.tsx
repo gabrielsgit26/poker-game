@@ -255,7 +255,11 @@ export function TableDetailView({ tableId }: { tableId: string }) {
     const authIssue =
       isApiRequestError(error) && (error.status === 401 || error.status === 403);
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center bg-gradient-to-b from-[#2a1018] to-black px-4 text-center">
+      <div
+        className="flex min-h-dvh flex-col items-center justify-center bg-gradient-to-b from-[#2a1018] to-black px-4 text-center"
+        role="alert"
+        aria-live="assertive"
+      >
         <p className="max-w-md text-lg font-semibold text-zinc-100">Could not open this table</p>
         <p className="mt-3 max-w-md text-sm leading-relaxed text-zinc-400">{msg}</p>
         {authIssue ? (

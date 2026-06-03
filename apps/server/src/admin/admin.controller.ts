@@ -42,12 +42,21 @@ export class AdminController {
     return this.admin.getSignupActivity(Number.isFinite(n) ? n : 14);
   }
 
+  /** Daily chip ledger activity (UTC buckets). */
+  @Get('report/ledger-daily')
+  async ledgerDailyReport(@Req() req: Request, @Query('days') days?: string) {
+    this.assertPlatformAdmin(req);
+    const n = days != null ? Number.parseInt(days, 10) : 14;
+    return this.admin.getLedgerActivity(Number.isFinite(n) ? n : 14);
+  }
+
   /** Club directory page with active member counts (platform admin). */
   @Get('clubs')
   async clubDirectory(
     @Req() req: Request,
     @Query('limit') limit?: string,
     @Query('skip') skip?: string,
+    @Query('q') q?: string,
   ) {
     this.assertPlatformAdmin(req);
     const lim = limit != null ? Number.parseInt(limit, 10) : 50;
@@ -55,16 +64,39 @@ export class AdminController {
     return this.admin.listClubs(
       Number.isFinite(lim) ? lim : 50,
       Number.isFinite(sk) ? sk : 0,
+      typeof q === 'string' ? q : undefined,
     );
   }
 
   /** Users page (newest `updatedAt` first). */
   @Get('users')
-  async users(@Req() req: Request, @Query('limit') limit?: string, @Query('skip') skip?: string) {
+  async users(
+    @Req() req: Request,
+    @Query('limit') limit?: string,
+    @Query('skip') skip?: string,
+    @Query('q') q?: string,
+  ) {
     this.assertPlatformAdmin(req);
     const lim = limit != null ? Number.parseInt(limit, 10) : 50;
     const sk = skip != null ? Number.parseInt(skip, 10) : 0;
     return this.admin.listUsers(
+      Number.isFinite(lim) ? lim : 50,
+      Number.isFinite(sk) ? sk : 0,
+      typeof q === 'string' ? q : undefined,
+    );
+  }
+
+  /** All tables (admin directory). */
+  @Get('tables')
+  async tablesDirectory(
+    @Req() req: Request,
+    @Query('limit') limit?: string,
+    @Query('skip') skip?: string,
+  ) {
+    this.assertPlatformAdmin(req);
+    const lim = limit != null ? Number.parseInt(limit, 10) : 50;
+    const sk = skip != null ? Number.parseInt(skip, 10) : 0;
+    return this.admin.listTables(
       Number.isFinite(lim) ? lim : 50,
       Number.isFinite(sk) ? sk : 0,
     );

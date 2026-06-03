@@ -29,6 +29,16 @@ import {
 import type { PokerAllowedAction, PokerTableBridge } from "@/features/tables/poker-table-ui-types";
 import { PokerSeatHud } from "@/features/tables/poker-seat-hud";
 import type { TableDetailApi } from "@/lib/lobby/api-tables";
+import { hapticYourTurn } from "@/lib/table/table-haptics";
+import {
+  playBoardStreet,
+  playChipsToPot,
+  playFold,
+  playHeroHoleDeal,
+  playPotToWinners,
+  playYourTurn,
+  resumeTableAudio,
+} from "@/lib/table/table-sounds";
 
 /** Chip animation target: pot center in normalized table coords (vertical pill felt). */
 const POT_NORM = { x: 0.5, y: 0.43 } as const;
@@ -135,6 +145,14 @@ export function PokerTableSvgView({
   tableDataRef.current = data;
   const [dims, setDims] = useState({ width: 360, height: 520 });
 
+  useEffect(() => {
+    const unlock = () => {
+      resumeTableAudio();
+    };
+    window.addEventListener("pointerdown", unlock, { passive: true });
+    return () => window.removeEventListener("pointerdown", unlock);
+  }, []);
+
   useLayoutEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -187,6 +205,7 @@ export function PokerTableSvgView({
 
   const dispatch = useCallback(
     (a: PokerAllowedAction) => {
+      if (a.id === "fold") playFold();
       if (!ui.useEngineActions) {
         if (a.id === "fold") bridge.onTableAction("fold");
         if (a.id === "check") bridge.onTableAction("check");
@@ -433,6 +452,7 @@ export function PokerTableSvgView({
 
     if (phase === "complete" && prevPhase !== "complete" && ui.payouts && ui.payouts.length > 0) {
       payoutChipSpawn = true;
+      playPotToWinners();
       setVisualPotForPile(0);
       const totalPay = ui.payouts.reduce((a, p) => a + p.amount, 0);
       for (const pay of ui.payouts) {
@@ -466,6 +486,7 @@ export function PokerTableSvgView({
     prevPhaseRef.current = phase;
 
     if (addedToPot > 0) {
+      playChipsToPot();
       const snapPot = ui.pot;
       window.setTimeout(() => {
         setVisualPotForPile((v) => Math.min(v + addedToPot, snapPot));
@@ -577,6 +598,30 @@ export function PokerTableSvgView({
     const t = window.setTimeout(() => setHeroHolesDealing(false), 700);
     return () => window.clearTimeout(t);
   }, [ui.handSeq, ui.viewerSeatIndex, ui.seats]);
+
+  useEffect(() => {
+    if (boardDealFromIdx != null) {
+      playBoardStreet();
+    }
+  }, [boardDealFromIdx]);
+
+  const prevHeroDealingSound = useRef(false);
+  useEffect(() => {
+    if (heroHolesDealing && !prevHeroDealingSound.current) {
+      playHeroHoleDeal();
+    }
+    prevHeroDealingSound.current = heroHolesDealing;
+  }, [heroHolesDealing]);
+
+  const wasViewerTurnRef = useRef(false);
+  useEffect(() => {
+    const on = ui.isViewerTurn && ui.phase === "betting";
+    if (on && !wasViewerTurnRef.current) {
+      hapticYourTurn();
+      playYourTurn();
+    }
+    wasViewerTurnRef.current = on;
+  }, [ui.isViewerTurn, ui.phase]);
 
   const handResultOpen =
     ui.phase === "complete" && ui.payouts && ui.payouts.length > 0 && payoutSummaryVisible;
@@ -755,7 +800,13 @@ export function PokerTableSvgView({
                 aria-label="Hand result"
               >
                 <div className="poker-hand-outcome-ticker pointer-events-none w-full max-w-[min(24rem,96%)]">
-                  <div className="rounded-xl border border-amber-500/[0.22] bg-gradient-to-b from-zinc-950/92 via-zinc-950/88 to-black/90 px-3 py-2 shadow-[0_12px_40px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md sm:px-4 sm:py-2.5">
+                  <div
+                  className={`rounded-xl border px-3 py-2 shadow-[0_12px_40px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md sm:px-4 sm:py-2.5 ${
+                    viewerPayoutTotal > 0
+                      ? "poker-hand-outcome-ticker--hero-win border-emerald-500/35 bg-gradient-to-b from-emerald-950/88 via-zinc-950/90 to-black/90"
+                      : "border-amber-500/[0.22] bg-gradient-to-b from-zinc-950/92 via-zinc-950/88 to-black/90"
+                  }`}
+                >
                     <p className="text-center text-[9px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
                       Pot awarded
                     </p>
@@ -801,7 +852,7 @@ export function PokerTableSvgView({
       <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 pt-[env(safe-area-inset-top)]">
         <header className="pointer-events-auto flex items-center justify-between gap-2 border-b border-white/10 bg-black/50 px-2 py-2 backdrop-blur-md">
           <details ref={tableMenuRef} className="relative">
-            <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full border border-amber-500/35 bg-zinc-950/95 text-amber-100 shadow-md transition hover:border-amber-400/55 hover:bg-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400/60 [&::-webkit-details-marker]:hidden">
+            <summary className="flex min-h-[44px] min-w-[44px] cursor-pointer list-none items-center justify-center rounded-full border border-amber-500/35 bg-zinc-950/95 text-amber-100 shadow-md transition hover:border-amber-400/55 hover:bg-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400/60 [&::-webkit-details-marker]:hidden">
               <span className="sr-only">Table menu</span>
               <IconTableMenu className="h-5 w-5" strokeWidth={2} />
             </summary>
@@ -902,14 +953,14 @@ export function PokerTableSvgView({
               type="button"
               onClick={() => bridge.onBack()}
               aria-label="Back to tables"
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-600/70 bg-zinc-900/95 text-zinc-100 shadow-sm transition hover:border-zinc-500 hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-zinc-600/70 bg-zinc-900/95 text-zinc-100 shadow-sm transition hover:border-zinc-500 hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400"
             >
               <IconTableBack className="h-5 w-5" strokeWidth={2} />
             </button>
             <button
               type="button"
               onClick={() => bridge.onLeave()}
-              className="flex h-10 items-center gap-1.5 rounded-full border border-rose-500/45 bg-gradient-to-b from-rose-900/95 to-rose-950/95 px-2.5 pl-2 text-rose-50 shadow-sm transition hover:border-rose-400/60 hover:from-rose-800/95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400/70"
+              className="flex min-h-[44px] items-center gap-1.5 rounded-full border border-rose-500/45 bg-gradient-to-b from-rose-900/95 to-rose-950/95 px-3 pl-2.5 text-rose-50 shadow-sm transition hover:border-rose-400/60 hover:from-rose-800/95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400/70"
             >
               <IconLeaveSeat className="h-[18px] w-[18px] shrink-0 text-rose-100" strokeWidth={2} />
               <span className="pr-0.5 text-[11px] font-bold tracking-wide">Leave</span>
@@ -956,7 +1007,7 @@ export function PokerTableSvgView({
           ) : (
             <p className="py-2 text-center text-[11px] text-zinc-400">
               {!ui.live && ui.viewerSeatIndex !== null
-                ? "Offline — set NEXT_PUBLIC_API_URL for live play"
+                ? "Live play unavailable — check connection"
                 : ui.live && !ui.liveReady && ui.viewerSeatIndex !== null
                   ? "Connecting to live table…"
                   : "\u00a0"}

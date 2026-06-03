@@ -247,3 +247,21 @@ export async function patchCashOutRequest(
   );
   return res.ok;
 }
+
+export interface ManagerClubChipTotalApi {
+  clubId: string;
+  clubName: string;
+  totalMemberChips: number;
+}
+
+export async function fetchManagerClubChipTotals(): Promise<ManagerClubChipTotalApi[] | null> {
+  const base = apiBase();
+  if (!base) return null;
+  try {
+    const res = await credFetch(`${base}/clubs/manager/chip-totals`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return (await res.json()) as ManagerClubChipTotalApi[];
+  } catch {
+    return null;
+  }
+}

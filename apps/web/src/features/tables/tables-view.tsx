@@ -106,11 +106,15 @@ export function TablesView() {
           <p className="text-sm font-semibold text-rose-100">Could not load tables</p>
           <p className="mt-2 text-sm leading-relaxed text-rose-200/85">{msg}</p>
           <p className="mt-3 text-xs text-zinc-500">
-            Check that the API is running and you are signed in (Settings → dev session, or{" "}
+            Check your connection, open{" "}
+            <Link href="/settings" className="text-amber-300 underline-offset-2 hover:underline">
+              Settings
+            </Link>{" "}
+            to sign in, or use{" "}
             <Link href="/login?next=/tables" className="text-amber-300 underline-offset-2 hover:underline">
               Telegram sign-in
             </Link>
-            ).
+            .
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button
@@ -141,19 +145,13 @@ export function TablesView() {
     <div className="mx-auto max-w-lg space-y-8 px-4 py-6">
       <div>
         <h1 className="text-2xl font-semibold text-zinc-50">Tables</h1>
-        <p className="mt-2 text-sm text-zinc-500">
-          List and create tables via the Nest API when{" "}
-          <code className="text-zinc-600">NEXT_PUBLIC_API_URL</code> is set. Without it you see a
-          static mock list.
-        </p>
       </div>
 
       {hasApi && !sessionOk ? (
         <div className="rounded-2xl border border-amber-500/35 bg-gradient-to-br from-amber-950/40 to-zinc-950/80 p-4 shadow-lg ring-1 ring-amber-500/15">
           <p className="text-sm font-semibold text-amber-100">Sign in required</p>
           <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
-            Start a dev session in Settings, or open this app inside Telegram after configuring{" "}
-            <code className="text-emerald-200/80">TELEGRAM_BOT_TOKEN</code> on the server.
+            Sign in from Settings, or open the app inside Telegram to continue.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Link
@@ -166,7 +164,7 @@ export function TablesView() {
               href="/settings"
               className="inline-flex items-center justify-center rounded-lg border border-white/15 px-4 py-2 text-sm font-medium text-zinc-200"
             >
-              Dev session
+              Settings
             </Link>
           </div>
         </div>
@@ -185,8 +183,8 @@ export function TablesView() {
             Create table
           </h2>
           <p className="mt-1 text-xs text-zinc-600">
-            Requires club <strong className="text-zinc-400">owner or manager</strong> role on the
-            API. If create fails, the server message is shown below and in a toast.
+            You need <strong className="text-zinc-400">owner or manager</strong> access on the
+            selected club. Errors appear below and in a short on-screen alert.
           </p>
           <div className="mt-4 space-y-3">
             <label className="block text-sm text-zinc-300">

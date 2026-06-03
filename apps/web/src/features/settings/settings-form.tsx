@@ -108,10 +108,6 @@ export function SettingsForm() {
 
   return (
     <div className="mx-auto max-w-lg space-y-6 px-4 py-2 pb-6">
-      <p className="text-center text-[11px] text-zinc-500">
-        Phase 4 · preferences stored in this browser only
-      </p>
-
       <section className="space-y-3" aria-labelledby="media-pref">
         <h2
           id="media-pref"
@@ -122,7 +118,7 @@ export function SettingsForm() {
         <ToggleRow
           id="sound"
           label="Sound effects"
-          description="Table sounds when the real client is wired up."
+          description="Table sounds: streets, chips moving, pot result, and when it is your turn."
           checked={sound}
           onChange={(v) => {
             setSound(v);
@@ -248,23 +244,19 @@ export function SettingsForm() {
             id="dev-session"
             className="text-xs font-medium uppercase tracking-widest text-zinc-500"
           >
-            Dev session (Phase 2)
+            Developer sign-in
           </h2>
           <div className="rounded-xl border border-white/10 bg-zinc-900/40 p-4 text-sm text-zinc-200">
             <p className="text-xs text-zinc-500">
-              Current API user:{" "}
+              Current user:{" "}
               <span className="font-mono text-zinc-300">{authUserId}</span>
             </p>
             <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
-              For HTTP-only cookies, set{" "}
-              <code className="text-emerald-200/90">NEXT_PUBLIC_API_URL=/api</code> and{" "}
-              <code className="text-emerald-200/90">API_PROXY_TARGET=http://localhost:3001</code>{" "}
-              in <code className="text-zinc-400">apps/web/.env.local</code> (see repo{" "}
-              <code className="text-zinc-400">.env.example</code>). Use the{" "}
+              For local testing, use the buttons below. Use the{" "}
               <a href="/login" className="text-amber-300 underline-offset-2 hover:underline">
-                /login
+                sign-in page
               </a>{" "}
-              page for Telegram Mini App sign-in when the bot token is configured on the API.
+              when opening the app from Telegram.
             </p>
             <label className="mt-3 block text-xs text-zinc-500" htmlFor="dev-uid">
               User id (letters, digits, <code className="text-zinc-400">._-</code> only)
@@ -284,14 +276,14 @@ export function SettingsForm() {
                   setSessBusy(true);
                   try {
                     const ok = await devLogin(devUid.trim() || undefined);
-                    if (!ok) window.alert("Dev login failed (check API and proxy env).");
+                    if (!ok) window.alert("Sign-in failed. Check your connection and try again.");
                   } finally {
                     setSessBusy(false);
                   }
                 }}
                 className="rounded-lg bg-emerald-600/85 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
               >
-                {sessBusy ? "…" : "Start dev session"}
+                {sessBusy ? "…" : "Sign in locally"}
               </button>
               <button
                 type="button"
@@ -336,9 +328,8 @@ export function SettingsForm() {
           Clear local preferences
         </button>
         <p className="text-center text-[11px] text-zinc-600">
-          Clears keys starting with <code className="text-zinc-500">poker:</code>{" "}
-          and returns to the lobby. Does not clear the Nest session cookie — use
-          “Clear server session” above when the API is configured.
+          Clears saved preferences in this browser and returns to the lobby. To sign out from the
+          server, use “Clear server session” above.
         </p>
       </div>
     </div>

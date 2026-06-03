@@ -144,6 +144,44 @@ html[data-table-theme="gold-room"] body {
   animation: poker-hand-outcome-ticker 0.44s cubic-bezier(0.22, 0.92, 0.28, 1) both;
 }
 
+@keyframes poker-hero-win-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 12px 40px rgba(0, 0, 0, 0.65),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 0 0 0 rgba(16, 185, 129, 0.35);
+  }
+  50% {
+    box-shadow:
+      0 14px 48px rgba(0, 0, 0, 0.72),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 0 0 10px rgba(16, 185, 129, 0.12);
+  }
+}
+
+.poker-hand-outcome-ticker--hero-win {
+  animation:
+    poker-hand-outcome-ticker 0.44s cubic-bezier(0.22, 0.92, 0.28, 1) both,
+    poker-hero-win-pulse 1.25s ease-in-out 0.35s 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .poker-chip-flight {
+    animation-duration: 0.12s;
+  }
+
+  .poker-board-card-deal,
+  .poker-hole-deal-wrap .poker-hole-deal-item {
+    animation-duration: 0.12s;
+  }
+
+  .poker-hand-outcome-ticker,
+  .poker-hand-outcome-ticker--hero-win {
+    animation: none;
+  }
+}
+
 .buyin-slider {
   -webkit-appearance: none;
   appearance: none;

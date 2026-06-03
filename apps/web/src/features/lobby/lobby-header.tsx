@@ -65,7 +65,7 @@ export function LobbyHeader({ user }: { user: LobbyUser }) {
             type="button"
             className="rounded-lg p-2 text-zinc-400 transition hover:bg-white/5 hover:text-zinc-200"
             aria-label="Notifications (coming soon)"
-            title="Notifications — Phase 4+"
+            title="Notifications (coming soon)"
           >
             <IconBell />
           </button>

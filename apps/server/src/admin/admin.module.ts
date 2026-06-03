@@ -6,6 +6,10 @@ import { ClubsModule } from '../clubs/clubs.module';
 import { Club, ClubSchema } from '../clubs/schemas/club.schema';
 import { ClubMember, ClubMemberSchema } from '../clubs/schemas/club-member.schema';
 import { ClubTable, ClubTableSchema } from '../tables/schemas/club-table.schema';
+import {
+  ChipLedgerEntry,
+  ChipLedgerEntrySchema,
+} from '../clubs/schemas/chip-ledger.schema';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 
@@ -18,6 +22,7 @@ import { AdminService } from './admin.service';
       { name: Club.name, schema: ClubSchema },
       { name: ClubMember.name, schema: ClubMemberSchema },
       { name: ClubTable.name, schema: ClubTableSchema },
+      { name: ChipLedgerEntry.name, schema: ChipLedgerEntrySchema },
     ]),
   ],
   controllers: [AdminController],

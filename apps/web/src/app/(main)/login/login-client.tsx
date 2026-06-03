@@ -31,7 +31,7 @@ export function LoginClient() {
     const ok = await telegramLogin(initData);
     if (!ok) {
       setStatus("err");
-      setErrMsg("Telegram sign-in failed. Is TELEGRAM_BOT_TOKEN set on the API?");
+      setErrMsg("Telegram sign-in failed. Try again or contact support.");
       return false;
     }
     router.replace(nextPath);
@@ -73,12 +73,11 @@ export function LoginClient() {
 
         {skipGate ? (
           <p className="mt-6 rounded-xl border border-amber-500/25 bg-amber-950/25 p-4 text-sm text-amber-100/90">
-            <code className="text-emerald-200/90">NEXT_PUBLIC_API_URL</code> is not set — session
-            gate is off. Configure the API to require sign-in, or open{" "}
+            Session protection is off in this build. Configure your deployment for sign-in, or open{" "}
             <Link href="/play" className="font-medium text-amber-300 underline-offset-2 hover:underline">
-              /play
+              Practice
             </Link>{" "}
-            for the offline lab.
+            for an offline runout.
           </p>
         ) : null}
 
@@ -100,7 +99,7 @@ export function LoginClient() {
             href="/settings"
             className="block w-full rounded-xl bg-emerald-600/90 py-3 text-center text-sm font-semibold text-white transition hover:bg-emerald-600"
           >
-            Dev session (Settings)
+            Open Settings
           </Link>
           <button
             type="button"

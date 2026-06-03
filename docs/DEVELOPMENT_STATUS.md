@@ -13,9 +13,9 @@ This file tracks **MVP roadmap phases** (plan §12). “Done” means good enoug
 | **7** | Poker engine | **Done** | `packages/shared/poker-engine` — NL MVP (side pots / full all-in tree: partial). |
 | **8** | Realtime gameplay | **Done** | Socket.IO, `gameAction`, `tableState`, holdem snapshot, clock + engine timeout path. Event names differ from plan §8 (optional rename later). |
 | **9** | Wallet / credits | **Done (MVP)** | Club chip wallet, buy-in/leave + **`chip_ledger`**, manager adjust, cash-out requests, CSV export, **`PLATFORM_ADJUST`** via **`POST /admin/clubs/:clubId/members/:userId/chip-grant`** (env **`PLATFORM_ADMIN_USER_IDS`**), **`isPlatformAdmin`** on **`GET /auth/me`**. |
-| **10** | Dashboards | **In progress** | **`/admin`** — paginated directories; **Overview chart:** **`GET /admin/report/signups?days=`** (UTC daily `newUsers` / `newClubs` from `createdAt`) + in-app bar chart (7/14/30d). **`/manager`** — client-paged tables. **Todo:** richer reports (volume/rake), directory search (plan §6.7–6.8). |
+| **10** | Dashboards | **Done (MVP)** | **`/admin`:** tabbed console (Overview KPIs, searchable Users/Clubs, paged Tables, Reports = signups + **`GET /admin/report/ledger-daily`** chart, Credits / platform grant). **`/manager`:** Overview (clubs, members, circulating chips via **`GET /clubs/manager/chip-totals`**, live tables, queues), **Requests** tab (approve/reject join + cash-out via existing PATCH APIs), Clubs, paged Tables. **Post-MVP:** DAU/MAU beyond heuristics, suspend users/clubs, immutable admin audit log UI, global rake policy UI, manager analytics (hand volume / rake / top players) from dedicated aggregates. |
 | **11** | Security / anti-cheat | **Partial** | Private club socket gate; **Todo:** rate limits, IP block, suspension, audit logs. |
-| **12** | Polish | **In progress** | **Live table:** SVG oval + HTML `PokerSeatHud`, CSS chip flights, outcome ticker, post-hand dwell. **Todo:** sounds, side-pot UI, optional Pixi layer, walkthrough. |
+| **12** | Polish | **Done (MVP)** | **Table:** Web Audio cues (`table-sounds.ts`) for street, hole deal, chips→pot, pot→winners, your turn, fold — gated by Settings → Sound; **haptics** on your turn (Settings → Vibration). **Winner:** hero payout ticker gets emerald pulse (`poker-hand-outcome-ticker--hero-win`). **`prefers-reduced-motion`:** shorter chip/board animations; outcome ticker animation disabled. **Mobile:** 44px min touch targets on table header controls; safe-area padding on chrome. **Docs:** `docs/DEMO_WALKTHROUGH.md` for recording. **Post-MVP:** Pixi layer, richer SFX library, optional music, full non-table motion pass. |
 
 ## Recommended local env (auth + API proxy)
 
@@ -23,6 +23,6 @@ See root `.env.example`: set `NEXT_PUBLIC_API_URL=/api` and `API_PROXY_TARGET=ht
 
 ## Next steps (strictly one phase at a time)
 
-1. **Phase 10:** directory search (`q` on admin clubs/users); manager/server reports (volume, rake) per plan §6.7–6.8.  
-2. **Phase 11** hardening, then **Phase 12** polish.  
+1. **Phase 11** hardening (rate limits, suspension, audit logs), then **Phase 12+** product polish as needed.  
+2. **Phase 10 optional / post-MVP:** manager & admin volume/rake reports once hand history aggregates exist.  
 3. **Phase 9 optional:** paginated ledger export on server.

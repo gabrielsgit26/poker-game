@@ -1701,7 +1701,7 @@ Build:
 - Mobile optimization
 - Video walkthrough preparation
 
-**Repo progress (partial):** table route has deal-in animations, CSS chip movement, on-felt outcome ticker, and tuned timing between hands; mobile-first table shell. **Still to match this phase:** sound design, richer winner celebration, full polish pass on non-table pages, demo video.
+**Repo progress (MVP):** deal-in animations, CSS chip flights, outcome ticker, post-hand dwell, **procedural Web Audio** (Settings), **turn haptics**, hero-win celebration styling, **`prefers-reduced-motion`** table CSS, **demo script** in `docs/DEMO_WALKTHROUGH.md`. **Still optional later:** licensed SFX pack, Pixi felt, engine side-pot breakdown in UI when model exposes it.
 
 Result:
 

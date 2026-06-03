@@ -850,4 +850,39 @@ export class ClubsService implements OnModuleInit {
     req.decidedAt = now;
     await req.save();
   }
+
+  /**
+   * Per-club sum of ACTIVE member club wallets for clubs where the viewer is OWNER or MANAGER.
+   */
+  async getManagedClubChipTotals(
+    userId: string,
+  ): Promise<{ clubId: string; clubName: string; totalMemberChips: number }[]> {
+    const roles = await this.memberModel
+      .find({
+        userId,
+        status: 'ACTIVE',
+        role: { $in: ['OWNER', 'MANAGER'] },
+      })
+      .select({ clubId: 1 })
+      .lean();
+    const ids = [...new Set(roles.map((r) => r.clubId))];
+    if (ids.length === 0) return [];
+    const clubs = await this.clubModel.find({ _id: { $in: ids } }).select({ name: 1 }).lean();
+    const nameBy = new Map(clubs.map((c) => [c._id, c.name]));
+    const out: { clubId: string; clubName: string; totalMemberChips: number }[] = [];
+    for (const clubId of ids) {
+      const agg = await this.memberModel.aggregate<{ s: number }>([
+        { $match: { clubId, status: 'ACTIVE' } },
+        { $group: { _id: null, s: { $sum: '$chipBalance' } } },
+      ]);
+      const raw = agg[0]?.s ?? 0;
+      out.push({
+        clubId,
+        clubName: String(nameBy.get(clubId) ?? clubId),
+        totalMemberChips: Math.max(0, Math.floor(Number(raw) || 0)),
+      });
+    }
+    out.sort((a, b) => a.clubName.localeCompare(b.clubName));
+    return out;
+  }
 }

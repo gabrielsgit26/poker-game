@@ -18,30 +18,28 @@ export function QuickActions() {
             ⚡
           </span>
           <span className="mt-2 font-semibold text-zinc-100">Quick join</span>
-          <span className="mt-1 text-xs text-zinc-500">Local practice table</span>
+          <span className="mt-1 text-xs text-zinc-500">Practice in the browser</span>
         </Link>
         <Link href="/clubs/new" className={cardBase}>
           <span className="text-2xl" aria-hidden>
             🏛️
           </span>
           <span className="mt-2 font-semibold text-zinc-100">Create club</span>
-          <span className="mt-1 text-xs text-zinc-500">Owner · Phase 5 API</span>
+          <span className="mt-1 text-xs text-zinc-500">You become the owner</span>
         </Link>
         <Link href="/lobby#clubs-section" className={cardBase} scroll>
           <span className="text-2xl" aria-hidden>
             🏠
           </span>
           <span className="mt-2 font-semibold text-zinc-100">My clubs</span>
-          <span className="mt-1 text-xs text-zinc-500">Scroll to clubs</span>
+          <span className="mt-1 text-xs text-zinc-500">Jump to your clubs</span>
         </Link>
         <Link href="/tables#create" className={cardBase}>
           <span className="text-2xl" aria-hidden>
             ➕
           </span>
           <span className="mt-2 font-semibold text-zinc-100">Create table</span>
-          <span className="mt-1 text-xs text-zinc-500">
-            Needs manager on API · Phase 6
-          </span>
+          <span className="mt-1 text-xs text-zinc-500">Needs manager access</span>
         </Link>
       </div>
     </section>

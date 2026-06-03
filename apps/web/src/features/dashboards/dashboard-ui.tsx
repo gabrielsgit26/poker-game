@@ -125,9 +125,16 @@ function formatStatValue(value: number | string): string {
   return String(value);
 }
 
-export function StatMetricGrid({ metrics }: { metrics: StatMetric[] }) {
+export function StatMetricGrid({
+  metrics,
+  gridClassName,
+}: {
+  metrics: StatMetric[];
+  /** Tailwind grid classes, e.g. `grid-cols-2 md:grid-cols-3` for six KPIs. */
+  gridClassName?: string;
+}) {
   return (
-    <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <ul className={`grid gap-3 ${gridClassName ?? "grid-cols-2 lg:grid-cols-4"}`}>
       {metrics.map((m) => (
         <li
           key={m.label}
@@ -206,6 +213,30 @@ export function DashboardQueryError({
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** Debounced server search field (caller owns debounced value in query keys). */
+export function DashboardSearchField({
+  value,
+  onChange,
+  placeholder,
+  "aria-label": ariaLabel,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  "aria-label": string;
+}) {
+  return (
+    <input
+      type="search"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      aria-label={ariaLabel}
+      className="w-full max-w-md rounded-xl border border-white/[0.1] bg-zinc-950/80 px-3.5 py-2.5 text-[13px] text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-amber-500/40 focus:ring-2 focus:ring-amber-500/15"
+    />
   );
 }
 

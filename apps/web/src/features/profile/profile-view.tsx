@@ -20,9 +20,6 @@ export function ProfileView() {
   if (isPending) {
     return (
       <div className="mx-auto max-w-lg px-4 py-2">
-        <p className="mb-4 text-center text-xs text-zinc-500">
-          Phase 4 profile · mock API
-        </p>
         <ProfileSkeleton />
       </div>
     );
@@ -48,9 +45,6 @@ export function ProfileView() {
 
   return (
     <div className="mx-auto max-w-lg space-y-6 px-4 py-2 pb-4">
-      <p className="text-center text-[11px] text-zinc-500">
-        Phase 4 · mock data (real API in later phases)
-      </p>
       <div className="flex flex-col gap-2">
         <Link
           href="/manager"

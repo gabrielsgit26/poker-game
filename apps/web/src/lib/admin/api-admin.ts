@@ -5,6 +5,8 @@ export interface AdminOverviewApi {
   clubCount: number;
   activeClubMembers: number;
   nonClosedTables: number;
+  dailyActiveUsers24h: number;
+  circulatingClubChips: number;
 }
 
 export async function fetchAdminOverview(): Promise<AdminOverviewApi | null> {
@@ -33,6 +35,20 @@ export interface AdminUserRowApi {
   updatedAt: string | null;
 }
 
+export interface AdminTableRowApi {
+  id: string;
+  clubId: string;
+  clubName: string;
+  name: string;
+  status: string;
+  smallBlind: number;
+  bigBlind: number;
+  minBuyIn: number;
+  maxPlayers: number;
+  timerSeconds: number;
+  updatedAt: string | null;
+}
+
 export interface AdminPagedApi<T> {
   items: T[];
   total: number;
@@ -48,6 +64,18 @@ export interface AdminSignupDayApi {
 
 export interface AdminSignupReportApi {
   days: AdminSignupDayApi[];
+  rangeStart: string;
+  rangeEnd: string;
+}
+
+export interface AdminLedgerDayApi {
+  day: string;
+  entries: number;
+  netDelta: number;
+}
+
+export interface AdminLedgerReportApi {
+  days: AdminLedgerDayApi[];
   rangeStart: string;
   rangeEnd: string;
 }
@@ -68,18 +96,37 @@ export async function fetchAdminSignupReport(days = 14): Promise<AdminSignupRepo
   }
 }
 
+export async function fetchAdminLedgerReport(days = 14): Promise<AdminLedgerReportApi | null> {
+  const base = apiBase();
+  if (!base) return null;
+  const d = Math.min(90, Math.max(1, Math.floor(days)));
+  try {
+    const res = await credFetch(
+      `${base}/admin/report/ledger-daily?days=${encodeURIComponent(String(d))}`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as AdminLedgerReportApi;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchAdminClubs(
   skip = 0,
   limit = 50,
+  q?: string,
 ): Promise<AdminPagedApi<AdminClubRowApi> | null> {
   const base = apiBase();
   if (!base) return null;
   try {
-    const q = new URLSearchParams({
+    const params = new URLSearchParams({
       skip: String(skip),
       limit: String(limit),
     });
-    const res = await credFetch(`${base}/admin/clubs?${q}`, { cache: "no-store" });
+    const trimmed = q?.trim();
+    if (trimmed) params.set("q", trimmed);
+    const res = await credFetch(`${base}/admin/clubs?${params}`, { cache: "no-store" });
     if (!res.ok) return null;
     return (await res.json()) as AdminPagedApi<AdminClubRowApi>;
   } catch {
@@ -90,17 +137,36 @@ export async function fetchAdminClubs(
 export async function fetchAdminUsers(
   skip = 0,
   limit = 50,
+  q?: string,
 ): Promise<AdminPagedApi<AdminUserRowApi> | null> {
   const base = apiBase();
   if (!base) return null;
   try {
-    const q = new URLSearchParams({
+    const params = new URLSearchParams({
       skip: String(skip),
       limit: String(limit),
     });
-    const res = await credFetch(`${base}/admin/users?${q}`, { cache: "no-store" });
+    const trimmed = q?.trim();
+    if (trimmed) params.set("q", trimmed);
+    const res = await credFetch(`${base}/admin/users?${params}`, { cache: "no-store" });
     if (!res.ok) return null;
     return (await res.json()) as AdminPagedApi<AdminUserRowApi>;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchAdminTables(
+  skip = 0,
+  limit = 50,
+): Promise<AdminPagedApi<AdminTableRowApi> | null> {
+  const base = apiBase();
+  if (!base) return null;
+  try {
+    const params = new URLSearchParams({ skip: String(skip), limit: String(limit) });
+    const res = await credFetch(`${base}/admin/tables?${params}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return (await res.json()) as AdminPagedApi<AdminTableRowApi>;
   } catch {
     return null;
   }

@@ -27,9 +27,7 @@ export function CreateClubForm() {
   if (!hasApi) {
     return (
       <p className="rounded-xl border border-amber-500/25 bg-amber-950/20 px-4 py-3 text-sm text-amber-100/90">
-        Set <code className="text-amber-200">NEXT_PUBLIC_API_URL</code> in{" "}
-        <code className="text-amber-200">apps/web/.env.local</code>, run MongoDB
-        and the Nest server, then reload this page.
+        Creating a club requires a live connection. Try again later.
       </p>
     );
   }

@@ -217,11 +217,7 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
   if (isError || !data) {
     return (
       <div className="mx-auto max-w-lg px-4 py-10 text-center">
-        <p className="text-zinc-300">
-          Club details need the API. Set{" "}
-          <code className="text-amber-200/90">NEXT_PUBLIC_API_URL</code> and run MongoDB +{" "}
-          <code className="text-amber-200/90">npm run dev:server</code>.
-        </p>
+        <p className="text-zinc-300">Could not load club details.</p>
         <button
           type="button"
           onClick={() => void refetch()}
