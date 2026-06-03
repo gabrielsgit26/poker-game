@@ -22,7 +22,7 @@ const holdemKey = (tableId: string) => `poker:table:${tableId}:holdem`;
 const buttonKey = (tableId: string) => `poker:table:${tableId}:dealerButton`;
 
 /** Time in complete phase before auto-dealing the next hand (lets clients show result + chips). */
-const POST_HAND_DEAL_DELAY_MS = 4200;
+const POST_HAND_DEAL_DELAY_MS = 7000;
 
 function phaseOf(st: HoldemState): HoldemState['phase'] {
   return st.phase;
@@ -110,6 +110,18 @@ export class HoldemCoordinator {
   }
 
   /**
+   * Table stack for this user in the current Redis snapshot (0 if absent).
+   * Used to return chips to the member's club balance when they leave the table.
+   */
+  async peekPlayerStackForCashOut(tableId: string, userId: string): Promise<number> {
+    const s = await this.readState(tableId);
+    if (!s) return 0;
+    const p = s.players.find((x) => x.userId === userId);
+    if (!p) return 0;
+    return Math.max(0, Math.floor(p.stack));
+  }
+
+  /**
    * Starts a new hand when ≥2 seated and no hand in progress.
    * Returns true if a new hand was started.
    */
@@ -129,29 +141,65 @@ export class HoldemCoordinator {
     if (prev && prev.phase === 'betting') return false;
 
     const handSeq = (prev?.handSeq ?? 0) + 1;
+    const minBuyIn = t.minBuyIn;
 
     /**
      * Carry exact stacks from the completed hand. Do not bump busted (0) players to minBuyIn —
      * that kept them in the engine with phantom chips so payouts could credit the wrong profile
      * vs who actually contested the pot. New seat since last hand (no prior row) gets minBuyIn.
+     *
+     * `debitAmount` is club chips debited when issuing a fresh stack from the room; carried stacks
+     * are not debited again. New seats use `buyInChips` from the seat document when present.
      */
-    const seatConfigs = seats.map((row) => {
-      let stack = t.minBuyIn;
+    const rowCfgs = seats.map((row) => {
+      type SeatLean = (typeof row) & { buyInChips?: number };
+      const r = row as SeatLean;
+      const seatPreferred = (() => {
+        const b = r.buyInChips;
+        if (typeof b === 'number' && Number.isFinite(b) && b >= minBuyIn) {
+          return Math.floor(b);
+        }
+        return minBuyIn;
+      })();
+
+      let stack = seatPreferred;
+      let debitAmount = seatPreferred;
+
       if (prev?.phase === 'complete') {
-        const old = prev.players.find((p) => p.userId === row.userId);
-        if (old) stack = old.stack;
-        else stack = t.minBuyIn;
+        const old = prev.players.find((p) => p.userId === r.userId);
+        if (old) {
+          stack = old.stack;
+          debitAmount = 0;
+        } else {
+          stack = seatPreferred;
+          debitAmount = seatPreferred;
+        }
       }
       return {
-        seatIndex: row.seatIndex,
-        userId: row.userId,
+        seatIndex: r.seatIndex,
+        userId: r.userId,
         stack,
+        debitAmount,
       };
     });
+
+    const seatConfigs = rowCfgs.map(({ seatIndex, userId, stack }) => ({
+      seatIndex,
+      userId,
+      stack,
+    }));
 
     const playingConfigs = seatConfigs.filter((c) => c.stack > 0);
     if (playingConfigs.length < 2) {
       return false;
+    }
+
+    const playingUserIds = new Set(playingConfigs.map((c) => c.userId));
+    const buyins: { userId: string; amount: number }[] = [];
+    for (const r of rowCfgs) {
+      if (r.stack > 0 && r.debitAmount > 0 && playingUserIds.has(r.userId)) {
+        buyins.push({ userId: r.userId, amount: r.debitAmount });
+      }
     }
 
     const occupiedPlaying = playingConfigs.map((c) => c.seatIndex);
@@ -164,9 +212,22 @@ export class HoldemCoordinator {
       bigBlind: t.bigBlind,
       handSeq,
     });
-    await this.writeState(tableId, st);
-    const nextBtn = nextButtonSeat(occupiedPlaying, btn);
-    await this.writeButtonSeat(tableId, nextBtn);
+
+    if (buyins.length > 0) {
+      await this.tablesService.debitBuyInsForHand(t.clubId, buyins);
+    }
+    try {
+      await this.writeState(tableId, st);
+      const nextBtn = nextButtonSeat(occupiedPlaying, btn);
+      await this.writeButtonSeat(tableId, nextBtn);
+    } catch (err) {
+      if (buyins.length > 0) {
+        for (const b of buyins) {
+          await this.tablesService.creditMemberChips(t.clubId, b.userId, b.amount);
+        }
+      }
+      throw err;
+    }
     void this.tablesService.pingBroadcast(tableId);
     return true;
   }

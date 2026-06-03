@@ -61,12 +61,17 @@ export class TablesController {
   sit(
     @Param('tableId') tableId: string,
     @Req() req: Request,
-    @Body() body: { seatIndex?: number },
+    @Body() body: { seatIndex?: number; buyInAmount?: number },
   ) {
     if (typeof body?.seatIndex !== 'number' || !Number.isInteger(body.seatIndex)) {
       throw new BadRequestException('Field "seatIndex" (integer) is required.');
     }
-    return this.tablesService.sitAtSeat(tableId, req.pokerUserId, body.seatIndex);
+    return this.tablesService.sitAtSeat(
+      tableId,
+      req.pokerUserId,
+      body.seatIndex,
+      body.buyInAmount,
+    );
   }
 
   @Post(':tableId/leave')

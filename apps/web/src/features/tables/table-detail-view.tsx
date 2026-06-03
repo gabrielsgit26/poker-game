@@ -4,10 +4,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { PokerTableSvgView } from "@/features/tables/poker-table-svg-view";
 import type { PokerTableBridge } from "@/features/tables/poker-table-ui-types";
+import { TableBuyInModal } from "@/features/tables/table-buy-in-modal";
 import { useTableSocket } from "@/features/tables/use-table-socket";
 import { apiBase } from "@/lib/dev-api";
+import { formatChips } from "@/lib/format-chips";
 import {
   fetchTableDetail,
   type HoldemGameActionPayload,
@@ -84,6 +87,9 @@ export function TableDetailView({ tableId }: { tableId: string }) {
   const authUserId = useAuthUserId();
   const live = Boolean(apiBase());
 
+  const [buyInOpen, setBuyInOpen] = useState(false);
+  const [buyInSeat, setBuyInSeat] = useState<number | null>(null);
+
   const onTableClosed = useCallback(() => {
     router.push("/tables");
   }, [router]);
@@ -103,41 +109,61 @@ export function TableDetailView({ tableId }: { tableId: string }) {
         ...d,
         holdem: d.holdem ?? null,
         viewerHoleCards: d.viewerHoleCards ?? null,
+        viewerClubChipBalance: d.viewerClubChipBalance ?? 0,
       };
     },
     retry: false,
   });
 
+  const buyInBounds = useMemo(() => {
+    if (!data) return { min: 100, max: 100 };
+    const min = data.table.minBuyIn;
+    const max = Math.min(
+      data.viewerClubChipBalance,
+      Math.max(min * 200, min, data.table.bigBlind * 100),
+    );
+    return { min, max: Math.max(min, max) };
+  }, [data]);
+
   const sitMut = useMutation({
-    mutationFn: (seatIndex: number) => postSitAtSeat(tableId, seatIndex),
+    mutationFn: (p: { seatIndex: number; buyInAmount: number }) =>
+      postSitAtSeat(tableId, p.seatIndex, p.buyInAmount),
     onSuccess: (d) => {
-      if (d) {
-        void queryClient.setQueryData(["table", tableId], d);
-        void queryClient.invalidateQueries({ queryKey: ["lobby"] });
-        void queryClient.invalidateQueries({ queryKey: ["tables"] });
-      }
+      void queryClient.setQueryData(["table", tableId], d);
+      setBuyInOpen(false);
+      setBuyInSeat(null);
+      toast.success("You took a seat.");
+      void queryClient.invalidateQueries({ queryKey: ["lobby"] });
+      void queryClient.invalidateQueries({ queryKey: ["tables"] });
+    },
+    onError: (e: Error) => {
+      toast.error(e.message || "Could not join this seat.");
     },
   });
 
   const leaveMut = useMutation({
     mutationFn: () => postLeaveSeat(tableId),
     onSuccess: (d) => {
-      if (d) {
-        void queryClient.setQueryData(["table", tableId], d);
-        void queryClient.invalidateQueries({ queryKey: ["lobby"] });
-        void queryClient.invalidateQueries({ queryKey: ["tables"] });
-      }
+      void queryClient.setQueryData(["table", tableId], d);
+      void queryClient.invalidateQueries({ queryKey: ["lobby"] });
+      void queryClient.invalidateQueries({ queryKey: ["tables"] });
+      toast.success("You left the seat.");
+    },
+    onError: (e: Error) => {
+      toast.error(e.message || "Could not leave the seat.");
     },
   });
 
   const closeMut = useMutation({
     mutationFn: () => postCloseTable(tableId),
-    onSuccess: (ok) => {
-      if (ok) {
-        void queryClient.invalidateQueries({ queryKey: ["lobby"] });
-        void queryClient.invalidateQueries({ queryKey: ["tables"] });
-        router.push("/lobby");
-      }
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["lobby"] });
+      void queryClient.invalidateQueries({ queryKey: ["tables"] });
+      toast.success("Table closed.");
+      router.push("/lobby");
+    },
+    onError: (e: Error) => {
+      toast.error(e.message || "Could not close the table.");
     },
   });
 
@@ -158,16 +184,21 @@ export function TableDetailView({ tableId }: { tableId: string }) {
     return Math.min(floor, cap);
   }, [data]);
 
-  const [sitPendingSeat, setSitPendingSeat] = useState<number | null>(null);
+  const sitPendingSeat = sitMut.isPending ? sitMut.variables?.seatIndex ?? null : null;
 
-  const trySitAtSeat = useCallback(
+  const openBuyIn = useCallback(
     (seatIndex: number) => {
-      setSitPendingSeat(seatIndex);
-      sitMut.mutate(seatIndex, {
-        onSettled: () => setSitPendingSeat(null),
-      });
+      if (!data) return;
+      if (data.viewerClubChipBalance < data.table.minBuyIn) {
+        toast.error(
+          `You need at least ${formatChips(data.table.minBuyIn)} club chips in this room to sit.`,
+        );
+        return;
+      }
+      setBuyInSeat(seatIndex);
+      setBuyInOpen(true);
     },
-    [sitMut],
+    [data],
   );
 
   const sendEngine = useCallback(
@@ -180,7 +211,7 @@ export function TableDetailView({ tableId }: { tableId: string }) {
   const liveReady = live && liveSocketState === "ready";
 
   const onLeaveSeat = useCallback(() => {
-    if (typeof window !== "undefined" && window.confirm("Leave your seat?")) {
+    if (typeof window !== "undefined" && window.confirm("Leave your seat? Chips return to your club balance.")) {
       leaveMut.mutate();
     }
   }, [leaveMut]);
@@ -221,18 +252,41 @@ export function TableDetailView({ tableId }: { tableId: string }) {
   }
 
   return (
-    <TableGameHost
-      data={data}
-      live={live}
-      liveReady={liveReady}
-      sitPendingSeat={sitPendingSeat}
-      defaultRaiseTo={defaultRaiseTo}
-      viewerUserId={authUserId}
-      onSit={trySitAtSeat}
-      onEngineAction={sendEngine}
-      onTableAction={emitTableAction}
-      onLeaveSeat={onLeaveSeat}
-      onCloseTable={onCloseTable}
-    />
+    <div className="flex min-h-dvh flex-col bg-black">
+      <div className="relative min-h-0 flex-1">
+        <TableGameHost
+          data={data}
+          live={live}
+          liveReady={liveReady}
+          sitPendingSeat={sitPendingSeat}
+          defaultRaiseTo={defaultRaiseTo}
+          viewerUserId={authUserId}
+          onSit={openBuyIn}
+          onEngineAction={sendEngine}
+          onTableAction={emitTableAction}
+          onLeaveSeat={onLeaveSeat}
+          onCloseTable={onCloseTable}
+        />
+        <TableBuyInModal
+          open={buyInOpen && buyInSeat != null}
+          onClose={() => {
+            if (sitMut.isPending) return;
+            setBuyInOpen(false);
+            setBuyInSeat(null);
+          }}
+          tableName={data.table.name}
+          smallBlind={data.table.smallBlind}
+          bigBlind={data.table.bigBlind}
+          minBuyIn={buyInBounds.min}
+          maxBuyIn={buyInBounds.max}
+          availableBalance={data.viewerClubChipBalance}
+          isSubmitting={sitMut.isPending}
+          onConfirm={(amount) => {
+            if (buyInSeat == null) return;
+            sitMut.mutate({ seatIndex: buyInSeat, buyInAmount: amount });
+          }}
+        />
+      </div>
+    </div>
   );
 }

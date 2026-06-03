@@ -11,7 +11,9 @@ import {
   useState,
 } from "react";
 import { buildPokerTableUiState } from "@/features/tables/build-poker-table-ui-state";
+import { formatCard, isRedSuit } from "@/features/tables/poker-mini-card";
 import type { PokerAllowedAction, PokerTableBridge } from "@/features/tables/poker-table-ui-types";
+import { PokerSeatHud } from "@/features/tables/poker-seat-hud";
 import type { TableDetailApi } from "@/lib/lobby/api-tables";
 
 /** Chip animation target: pot center in normalized table coords (vertical pill felt). */
@@ -19,7 +21,7 @@ const POT_NORM = { x: 0.5, y: 0.43 } as const;
 
 /** Must match `poker-chip-fly` duration in globals.css */
 const CHIP_FLIGHT_MS = 520;
-/** Extra time after the last chip lands before the result panel appears (read pot / breathe). */
+/** Extra time after the last chip lands before the outcome ticker appears (read pot / breathe). */
 const PAYOUT_RESULT_AFTER_CHIPS_MS = 380;
 
 /**
@@ -45,20 +47,6 @@ function seatNorm(i: number, n: number): { x: number; y: number } {
     x: cx + Math.cos(ang) * rx * 0.98,
     y: cy + Math.sin(ang) * ry * 0.98,
   };
-}
-
-function formatCard(code: string): string {
-  if (code.length !== 2) return code;
-  const r = code[0]!.toUpperCase();
-  const rank = r === "T" ? "10" : r;
-  const s = code[1]!.toLowerCase();
-  const suit = s === "h" ? "♥" : s === "d" ? "♦" : s === "c" ? "♣" : s === "s" ? "♠" : s;
-  return `${rank}${suit}`;
-}
-
-function isRedSuit(code: string): boolean {
-  const s = code[1]?.toLowerCase();
-  return s === "h" || s === "d";
 }
 
 /** Visual chip count in the center pile (log-scaled vs pot; capped for perf). */
@@ -102,45 +90,6 @@ function PotChipPile({ pot, bigBlind }: { pot: number; bigBlind: number }) {
           />
         );
       })}
-    </div>
-  );
-}
-
-function MiniCard({
-  code,
-  faceDown,
-  className,
-  size = "sm",
-}: {
-  code?: string;
-  faceDown?: boolean;
-  className?: string;
-  /** Hero (viewer) hole cards render larger for readability. */
-  size?: "sm" | "hero";
-}) {
-  const dim =
-    size === "hero"
-      ? "h-14 w-10 min-h-14 min-w-10 rounded-md border-2 shadow-md"
-      : "h-9 w-6 shrink-0 rounded border shadow";
-  const base = `poker-hole-deal-item flex items-center justify-center ${dim}`;
-  const faceDownText = size === "hero" ? "text-sm" : "text-[10px]";
-  const faceUpText = size === "hero" ? "text-sm font-bold" : "text-[9px] font-bold";
-  if (faceDown) {
-    return (
-      <div
-        className={`${base} border-amber-600/60 bg-slate-900 ${faceDownText} text-amber-400 ${className ?? ""}`}
-      >
-        ♠
-      </div>
-    );
-  }
-  if (!code) return null;
-  return (
-    <div
-      className={`${base} border-slate-400 bg-white ${faceUpText} ${isRedSuit(code) ? "text-rose-600" : "text-slate-900"
-        } ${className ?? ""}`}
-    >
-      {formatCard(code)}
     </div>
   );
 }
@@ -283,7 +232,7 @@ export function PokerTableSvgView({
   const [chipParticles, setChipParticles] = useState<ChipParticle[]>([]);
   /** Chips shown in the center pile — only after they “arrive” from seats (not full server pot at hand start). */
   const [visualPotForPile, setVisualPotForPile] = useState(0);
-  /** Hand result overlay — only after pot→seat chip flights finish (see payout reveal timer). */
+  /** Hand outcome ticker — only after pot→seat chip flights finish (see payout reveal timer). */
   const [payoutSummaryVisible, setPayoutSummaryVisible] = useState(false);
   const prevStreetPutsRef = useRef<number[] | null>(null);
   const prevPhaseRef = useRef<string | null>(null);
@@ -549,7 +498,7 @@ export function PokerTableSvgView({
   }, []);
 
   /**
-   * Open result immediately when we’re already on a completed hand but no payout chip burst ran
+   * Open outcome ticker immediately when we’re already on a completed hand but no payout chip burst ran
    * (e.g. first paint on table detail). When chips did run, `payoutRevealScheduledRef` blocks this.
    */
   useEffect(() => {
@@ -612,10 +561,11 @@ export function PokerTableSvgView({
 
   const handResultOpen =
     ui.phase === "complete" && ui.payouts && ui.payouts.length > 0 && payoutSummaryVisible;
-  const revealedRows = useMemo(
-    () => ui.seats.filter((s) => s.revealedHoleCards && s.userId),
-    [ui.seats],
-  );
+
+  const viewerPayoutTotal = useMemo(() => {
+    if (!viewerUserId || !ui.payouts?.length) return 0;
+    return ui.payouts.filter((p) => p.userId === viewerUserId).reduce((a, p) => a + p.amount, 0);
+  }, [viewerUserId, ui.payouts]);
 
   return (
     <div className="relative h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-gradient-to-b from-[#1a0c10] via-[#120608] to-[#0a0406]">
@@ -759,167 +709,68 @@ export function PokerTableSvgView({
               const p = seatNorm(idx, ui.maxPlayers);
               const isHero = ui.viewerSeatIndex === idx;
               const isAct = ui.activeSeatIndex === idx && ui.phase === "betting";
-              const holes = seat.holeCards ?? seat.revealedHoleCards;
-              const showBacks =
-                seat.userId &&
-                !seat.folded &&
-                ui.showHoleBacksForOthers &&
-                !isHero &&
-                !holes;
-
               return (
-                <div
+                <PokerSeatHud
                   key={idx}
-                  className={`absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5 ${isHero ? "w-[min(46vw,12.5rem)]" : "w-[min(28vw,7.5rem)]"
-                    }`}
-                  style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
-                >
-                  <div
-                    className={`relative rounded-full border-2 p-0.5 ${isAct ? "border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.5)]" : ""
-                      } ${isHero ? "border-amber-400/90" : "border-slate-600/80"}`}
-                  >
-                    {isAct && ui.turnDeadlineMs ? (
-                      <svg className="absolute inset-[-4px] h-[calc(100%+8px)] w-[calc(100%+8px)] -rotate-90" viewBox="0 0 36 36">
-                        <circle
-                          cx="18"
-                          cy="18"
-                          r="15"
-                          fill="none"
-                          stroke="rgba(52,211,153,0.25)"
-                          strokeWidth="3"
-                        />
-                        <circle
-                          cx="18"
-                          cy="18"
-                          r="15"
-                          fill="none"
-                          stroke="#34d399"
-                          strokeWidth="3"
-                          strokeDasharray={`${turnFrac * 94.2} 94.2`}
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    ) : null}
-                    <div
-                      className={`flex h-11 w-11 items-center justify-center rounded-full text-[10px] font-bold ${seat.userId ? (seat.folded ? "bg-slate-800/60 text-slate-500" : "bg-slate-700 text-zinc-100") : "bg-slate-900 text-zinc-500"
-                        }`}
-                    >
-                      {seat.userId ? seat.userId.slice(0, 2).toUpperCase() : idx + 1}
-                    </div>
-                  </div>
-                  <div className="max-w-full truncate text-center text-[9px] font-semibold text-zinc-200">
-                    {seat.userId ? (seat.userId.length > 12 ? `${seat.userId.slice(0, 11)}…` : seat.userId) : `Seat ${idx + 1}`}
-                  </div>
-                  {seat.stack != null ? (
-                    <div className="text-[9px] font-bold text-amber-200">${seat.stack.toLocaleString()}</div>
-                  ) : null}
-                  {seat.streetPut > 0 && seat.userId ? (
-                    <div className="text-[8px] text-sky-200">Bet ${seat.streetPut}</div>
-                  ) : null}
-                  <div
-                    className={`flex items-center justify-center ${isHero ? "gap-1" : "gap-0.5"} ${isHero && heroHolesDealing && holes ? "poker-hole-deal-wrap" : ""
-                      }`}
-                  >
-                    {holes ? (
-                      <>
-                        <MiniCard code={holes[0]} size={isHero ? "hero" : "sm"} />
-                        <MiniCard code={holes[1]} size={isHero ? "hero" : "sm"} />
-                      </>
-                    ) : showBacks ? (
-                      <>
-                        <MiniCard faceDown size={isHero ? "hero" : "sm"} />
-                        <MiniCard faceDown size={isHero ? "hero" : "sm"} />
-                      </>
-                    ) : null}
-                  </div>
-                  <div className="flex gap-0.5">
-                    {seat.isButton ? (
-                      <span className="rounded bg-zinc-100 px-1 text-[8px] font-black text-zinc-900">D</span>
-                    ) : null}
-                    {seat.isSb ? <span className="rounded bg-sky-300 px-1 text-[8px] font-black text-zinc-900">SB</span> : null}
-                    {seat.isBb ? <span className="rounded bg-amber-300 px-1 text-[8px] font-black text-zinc-900">BB</span> : null}
-                    {seat.folded && seat.userId ? (
-                      <span className="text-[8px] font-bold text-rose-300">FOLD</span>
-                    ) : null}
-                  </div>
-                  {!seat.userId && ui.live && ui.viewerSeatIndex === null ? (
-                    <button
-                      type="button"
-                      disabled={ui.sitPendingSeat !== null}
-                      onClick={() => bridge.onSit(idx)}
-                      className="mt-0.5 rounded-md bg-emerald-700 px-2 py-1 text-[10px] font-black text-white shadow active:scale-95 disabled:opacity-50"
-                    >
-                      {ui.sitPendingSeat === idx ? "…" : "SIT"}
-                    </button>
-                  ) : null}
-                </div>
+                  seatIndex={idx}
+                  norm={p}
+                  seat={seat}
+                  isHero={isHero}
+                  isAct={isAct}
+                  turnFrac={turnFrac}
+                  heroHolesDealing={heroHolesDealing}
+                  showHoleBacksForOthers={ui.showHoleBacksForOthers}
+                  live={ui.live}
+                  viewerSeatIndex={ui.viewerSeatIndex}
+                  sitPendingSeat={sitPendingSeat}
+                  bridge={bridge}
+                />
               );
             })}
 
             {handResultOpen ? (
               <div
-                className="pointer-events-none absolute inset-0 z-[25] flex items-center justify-center bg-black/25 p-2 backdrop-blur-[2px] sm:p-4"
+                className="pointer-events-none absolute inset-x-0 bottom-[10%] z-[20] flex justify-center px-2 sm:bottom-[11%]"
                 role="status"
                 aria-live="polite"
+                aria-label="Hand result"
               >
-                <div className="pointer-events-auto max-h-[72%] w-[min(22rem,92%)] overflow-y-auto rounded-2xl border border-emerald-500/35 bg-zinc-950/50 p-3 shadow-2xl backdrop-blur-xl ring-1 ring-white/10">
-                  <p className="text-center text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-300/95">
-                    Hand complete
-                  </p>
-                  {ui.payouts!.length > 1 ? (
-                    <p className="mt-1 text-center text-[9px] text-zinc-400">Split pot — same winning hand</p>
-                  ) : null}
-                  <div className="mt-2 space-y-1.5">
-                    {ui.payouts!.map((p) => (
-                      <div
-                        key={`${p.seatIndex}-${p.userId}-${p.amount}`}
-                        className="flex items-center justify-between gap-2 rounded-lg bg-black/25 px-2.5 py-1.5 ring-1 ring-emerald-500/20 backdrop-blur-sm"
-                      >
-                        <span className="min-w-0 truncate text-[11px] text-zinc-200">
-                          <span className="font-bold text-emerald-200">Seat {p.seatIndex + 1}</span>
-                          <span className="text-zinc-500"> · </span>
-                          <span className="font-mono text-[10px] text-zinc-400">
-                            {p.userId.length > 14 ? `${p.userId.slice(0, 13)}…` : p.userId}
-                          </span>
-                        </span>
-                        <span className="shrink-0 text-sm font-black text-amber-300 tabular-nums">
-                          +${p.amount.toLocaleString()}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  {viewerUserId && ui.payouts!.some((p) => p.userId === viewerUserId) ? (
-                    <p className="mt-2 text-center text-[11px] font-semibold text-amber-200/95">
-                      You won{" "}
-                      <span className="font-black text-amber-300 tabular-nums">
-                        $
-                        {ui
-                          .payouts!.filter((p) => p.userId === viewerUserId)
-                          .reduce((a, p) => a + p.amount, 0)
-                          .toLocaleString()}
-                      </span>
+                <div className="poker-hand-outcome-ticker pointer-events-none w-full max-w-[min(24rem,96%)]">
+                  <div className="rounded-xl border border-amber-500/[0.22] bg-gradient-to-b from-zinc-950/92 via-zinc-950/88 to-black/90 px-3 py-2 shadow-[0_12px_40px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md sm:px-4 sm:py-2.5">
+                    <p className="text-center text-[9px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                      Pot awarded
                     </p>
-                  ) : null}
-                  {revealedRows.length > 0 ? (
-                    <div className="mt-3 border-t border-emerald-500/25 pt-2">
-                      <p className="text-[9px] font-bold uppercase tracking-wide text-zinc-500">Shown at showdown</p>
-                      <div className="mt-1.5 space-y-2">
-                        {revealedRows.map((s) => (
-                          <div key={s.seatIndex} className="flex items-center justify-between gap-2">
-                            <span className="truncate text-[10px] text-zinc-400">
-                              Seat {s.seatIndex + 1}
-                              <span className="text-zinc-600"> · </span>
-                              {s.userId && s.userId.length > 12 ? `${s.userId.slice(0, 11)}…` : s.userId}
-                            </span>
-                            <div className="flex shrink-0 gap-0.5">
-                              <MiniCard code={s.revealedHoleCards![0]} />
-                              <MiniCard code={s.revealedHoleCards![1]} />
-                            </div>
-                          </div>
+                    {ui.payouts!.length === 1 ? (
+                      <p className="mt-1 text-center text-[13px] font-semibold leading-snug tracking-tight text-zinc-100 sm:text-sm">
+                        <span className="text-amber-200/95">Seat {ui.payouts![0]!.seatIndex + 1}</span>
+                        <span className="text-zinc-500"> wins </span>
+                        <span className="tabular-nums text-amber-300">
+                          ${ui.payouts![0]!.amount.toLocaleString()}
+                        </span>
+                      </p>
+                    ) : (
+                      <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-[12px] font-medium leading-snug text-zinc-200 sm:text-[13px]">
+                        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-amber-200/90">
+                          Split pot
+                        </span>
+                        {ui.payouts!.map((p, i) => (
+                          <span key={`${p.seatIndex}-${p.userId}`} className="inline-flex items-center gap-1 tabular-nums">
+                            {i > 0 ? <span className="text-zinc-600" aria-hidden>·</span> : null}
+                            <span className="text-zinc-400">Seat {p.seatIndex + 1}</span>
+                            <span className="font-semibold text-amber-300">${p.amount.toLocaleString()}</span>
+                          </span>
                         ))}
                       </div>
-                    </div>
-                  ) : null}
+                    )}
+                    {viewerPayoutTotal > 0 ? (
+                      <p className="mt-1.5 border-t border-white/[0.06] pt-1.5 text-center text-[11px] font-medium text-amber-100/95">
+                        You collected{" "}
+                        <span className="font-bold tabular-nums text-amber-300">
+                          ${viewerPayoutTotal.toLocaleString()}
+                        </span>
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             ) : null}

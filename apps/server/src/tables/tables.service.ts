@@ -105,6 +105,8 @@ export interface TableDetailPayload {
   holdem: HoldemPublicSnapshot | null;
   /** Hole cards for the requesting user when seated in the current hand. */
   viewerHoleCards: [string, string] | null;
+  /** Member's club-room chip balance (off-table wallet; table stacks are separate). */
+  viewerClubChipBalance: number;
 }
 
 /** Public snapshot for HTTP + Socket.IO (no per-viewer fields). */
@@ -876,6 +878,79 @@ export class TablesService implements OnModuleInit, OnModuleDestroy {
     if (!m) throw new ForbiddenException('You must be a club member to sit at this table.');
   }
 
+  async getMemberChipBalance(clubId: string, userId: string): Promise<number> {
+    const m = await this.memberModel
+      .findOne({ clubId, userId, status: 'ACTIVE' })
+      .select({ chipBalance: 1 })
+      .lean();
+    const n = m?.chipBalance;
+    return typeof n === 'number' && Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
+  }
+
+  async assertMemberChipBalanceGte(
+    clubId: string,
+    userId: string,
+    atLeast: number,
+  ): Promise<void> {
+    const need = Math.max(0, Math.floor(atLeast));
+    if (need === 0) return;
+    const bal = await this.getMemberChipBalance(clubId, userId);
+    if (bal < need) {
+      throw new BadRequestException(
+        `Not enough club chips to sit at this table (need at least ${need} for the buy-in). You have ${bal}.`,
+      );
+    }
+  }
+
+  /** Credits club-room chips (e.g. cash-out from table stack). */
+  async creditMemberChips(clubId: string, userId: string, amount: number): Promise<void> {
+    const n = Math.max(0, Math.floor(amount));
+    if (n === 0) return;
+    await this.memberModel.updateOne(
+      { clubId, userId, status: 'ACTIVE' },
+      { $inc: { chipBalance: n } },
+    );
+  }
+
+  /**
+   * Debits club chips for fresh buy-ins when a new hand is dealt. Rolls back partial debits on failure.
+   */
+  async debitBuyInsForHand(
+    clubId: string,
+    rows: { userId: string; amount: number }[],
+  ): Promise<void> {
+    const done: { userId: string; amount: number }[] = [];
+    try {
+      for (const r of rows) {
+        const amt = Math.max(0, Math.floor(r.amount));
+        if (amt <= 0) continue;
+        const res = await this.memberModel.updateOne(
+          {
+            clubId,
+            userId: r.userId,
+            status: 'ACTIVE',
+            chipBalance: { $gte: amt },
+          },
+          { $inc: { chipBalance: -amt } },
+        );
+        if (res.modifiedCount !== 1) {
+          throw new BadRequestException(
+            `Insufficient club chips for buy-in (need ${amt} for this hand).`,
+          );
+        }
+        done.push({ userId: r.userId, amount: amt });
+      }
+    } catch (e) {
+      for (const d of done) {
+        await this.memberModel.updateOne(
+          { clubId, userId: d.userId, status: 'ACTIVE' },
+          { $inc: { chipBalance: d.amount } },
+        );
+      }
+      throw e;
+    }
+  }
+
   async createTable(
     userId: string,
     clubId: string,
@@ -946,6 +1021,7 @@ export class TablesService implements OnModuleInit, OnModuleDestroy {
     if (viewerSeatIndex !== null && holdem && holdem.phase !== 'complete') {
       viewerHoleCards = await this.holdem.getViewerHoleCards(tableId, userId);
     }
+    const viewerClubChipBalance = await this.getMemberChipBalance(t.clubId, userId);
     return {
       table: row,
       seats,
@@ -955,6 +1031,7 @@ export class TablesService implements OnModuleInit, OnModuleDestroy {
       actionTurn,
       holdem,
       viewerHoleCards,
+      viewerClubChipBalance,
     };
   }
 
@@ -962,6 +1039,7 @@ export class TablesService implements OnModuleInit, OnModuleDestroy {
     tableId: string,
     userId: string,
     seatIndex: number,
+    buyInAmount?: number,
   ): Promise<TableDetailPayload> {
     const t = await this.tableModel.findById(tableId);
     if (!t || t.status === 'CLOSED') {
@@ -981,10 +1059,36 @@ export class TablesService implements OnModuleInit, OnModuleDestroy {
     const taken = await this.seatModel.findOne({ tableId, seatIndex });
     if (taken) throw new BadRequestException('Seat is occupied.');
 
-    await this.seatModel.create({ tableId, seatIndex, userId });
-    await this.ensureActionTurn(tableId);
-    await this.refreshTurnDeadline(tableId);
-    await this.holdem.tryStartHand(tableId);
+    const balance = await this.getMemberChipBalance(t.clubId, userId);
+    const minBuyIn = t.minBuyIn;
+    const maxCap = Math.min(
+      balance,
+      Math.max(minBuyIn * 200, minBuyIn, t.bigBlind * 100),
+    );
+    const raw =
+      typeof buyInAmount === 'number' && Number.isFinite(buyInAmount)
+        ? Math.floor(buyInAmount)
+        : minBuyIn;
+    const buyIn = Math.min(Math.max(raw, minBuyIn), maxCap);
+
+    await this.assertMemberChipBalanceGte(t.clubId, userId, buyIn);
+
+    await this.seatModel.create({
+      tableId,
+      seatIndex,
+      userId,
+      buyInChips: buyIn,
+    });
+    try {
+      await this.ensureActionTurn(tableId);
+      await this.refreshTurnDeadline(tableId);
+      await this.holdem.tryStartHand(tableId);
+    } catch (err) {
+      await this.seatModel.deleteOne({ tableId, userId });
+      await this.reconcileActionTurnAfterLeave(tableId, seatIndex);
+      await this.refreshTurnDeadline(tableId);
+      throw err;
+    }
     const detail = await this.getDetail(tableId, userId);
     await this.tableGateway.broadcastState(tableId);
     return detail;
@@ -998,11 +1102,15 @@ export class TablesService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException('You are not seated at this table.');
     }
     const vacatedSeatIndex = leaving.seatIndex;
+    const cashOutStack = await this.holdem.peekPlayerStackForCashOut(tableId, userId);
     await this.holdem.onPlayerLeft(tableId, userId);
     await this.seatModel.deleteOne({ tableId, userId });
     await this.reconcileActionTurnAfterLeave(tableId, vacatedSeatIndex);
     await this.refreshTurnDeadline(tableId);
     await this.holdem.tryStartHand(tableId);
+    if (cashOutStack > 0) {
+      await this.creditMemberChips(t.clubId, userId, cashOutStack);
+    }
     const detail = await this.getDetail(tableId, userId);
     await this.tableGateway.broadcastState(tableId);
     return detail;

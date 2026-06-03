@@ -127,3 +127,53 @@ html[data-table-theme="gold-room"] body {
 .poker-hole-deal-wrap .poker-hole-deal-item:nth-child(2) {
   animation-delay: 100ms;
 }
+
+/* Hand complete — compact outcome ticker on felt (no modal). */
+@keyframes poker-hand-outcome-ticker {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.poker-hand-outcome-ticker {
+  animation: poker-hand-outcome-ticker 0.44s cubic-bezier(0.22, 0.92, 0.28, 1) both;
+}
+
+.buyin-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, rgb(39 39 42), rgb(63 63 70));
+}
+
+.buyin-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #fde68a, #d97706);
+  border: 2px solid rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+}
+
+.buyin-slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #fde68a, #d97706);
+  border: 2px solid rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+}

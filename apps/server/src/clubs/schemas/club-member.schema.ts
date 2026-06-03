@@ -16,6 +16,10 @@ export class ClubMember {
 
   @Prop({ type: String, default: 'ACTIVE', enum: ['ACTIVE', 'BLOCKED'] })
   status!: 'ACTIVE' | 'BLOCKED';
+
+  /** Play-money chips for this club room (buy-in debited when dealt in; cashed out on leave). */
+  @Prop({ type: Number, default: 100_000, min: 0 })
+  chipBalance!: number;
 }
 
 export const ClubMemberSchema = SchemaFactory.createForClass(ClubMember);

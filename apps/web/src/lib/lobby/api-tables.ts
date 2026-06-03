@@ -46,6 +46,26 @@ export type HoldemGameActionPayload =
 
 export type { HoldemPublicSnapshot };
 
+async function readJsonOrThrow<T>(res: Response): Promise<T> {
+  const text = await res.text();
+  let parsed: unknown = null;
+  if (text) {
+    try {
+      parsed = JSON.parse(text) as unknown;
+    } catch {
+      if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
+      throw new Error("Invalid response from server.");
+    }
+  }
+  if (!res.ok) {
+    const j = parsed as { message?: string | string[] } | null;
+    const m = j?.message;
+    const msg = Array.isArray(m) ? m.join(". ") : typeof m === "string" ? m : `Request failed (${res.status})`;
+    throw new Error(msg);
+  }
+  return (parsed ?? {}) as T;
+}
+
 export interface TableDetailApi {
   table: TableCardModel;
   seats: TableSeatApi[];
@@ -60,6 +80,8 @@ export interface TableDetailApi {
   holdem: HoldemPublicSnapshot | null;
   /** Requesting user’s hole cards when seated in the current hand. */
   viewerHoleCards: [string, string] | null;
+  /** Club-room wallet (debited on buy-in when dealt; returned on leave with current stack). */
+  viewerClubChipBalance: number;
 }
 
 export async function fetchTableDetail(
@@ -101,44 +123,35 @@ export async function postCreateTable(body: {
 export async function postSitAtSeat(
   tableId: string,
   seatIndex: number,
-): Promise<TableDetailApi | null> {
+  buyInAmount?: number,
+): Promise<TableDetailApi> {
   const base = apiBase();
-  if (!base) return null;
+  if (!base) throw new Error("API is not configured (set NEXT_PUBLIC_API_URL).");
   const res = await credFetch(
     `${base}/tables/${encodeURIComponent(tableId)}/sit`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ seatIndex }),
+      body: JSON.stringify({ seatIndex, buyInAmount }),
     },
   );
-  if (!res.ok) return null;
-  return (await res.json()) as TableDetailApi;
+  return readJsonOrThrow<TableDetailApi>(res);
 }
 
-export async function postLeaveSeat(
-  tableId: string,
-): Promise<TableDetailApi | null> {
+export async function postLeaveSeat(tableId: string): Promise<TableDetailApi> {
   const base = apiBase();
-  if (!base) return null;
-  const res = await credFetch(
-    `${base}/tables/${encodeURIComponent(tableId)}/leave`,
-    {
-      method: "POST",
-    },
-  );
-  if (!res.ok) return null;
-  return (await res.json()) as TableDetailApi;
+  if (!base) throw new Error("API is not configured (set NEXT_PUBLIC_API_URL).");
+  const res = await credFetch(`${base}/tables/${encodeURIComponent(tableId)}/leave`, {
+    method: "POST",
+  });
+  return readJsonOrThrow<TableDetailApi>(res);
 }
 
-export async function postCloseTable(tableId: string): Promise<boolean> {
+export async function postCloseTable(tableId: string): Promise<void> {
   const base = apiBase();
-  if (!base) return false;
-  const res = await credFetch(
-    `${base}/tables/${encodeURIComponent(tableId)}/close`,
-    {
-      method: "POST",
-    },
-  );
-  return res.ok;
+  if (!base) throw new Error("API is not configured (set NEXT_PUBLIC_API_URL).");
+  const res = await credFetch(`${base}/tables/${encodeURIComponent(tableId)}/close`, {
+    method: "POST",
+  });
+  await readJsonOrThrow<{ ok?: boolean }>(res);
 }

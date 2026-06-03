@@ -13,6 +13,10 @@ export class TableSeat {
 
   @Prop({ type: String, required: true })
   userId!: string;
+
+  /** Chips taken from club wallet when first dealt in (defaults to table minBuyIn on server). */
+  @Prop({ type: Number, min: 0 })
+  buyInChips?: number;
 }
 
 export const TableSeatSchema = SchemaFactory.createForClass(TableSeat);

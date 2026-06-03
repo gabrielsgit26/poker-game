@@ -60,6 +60,10 @@ export class ClubsService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     await this.ensureSeed();
+    await this.memberModel.updateMany(
+      { chipBalance: { $exists: false } },
+      { $set: { chipBalance: 100_000 } },
+    );
   }
 
   private async ensureSeed(): Promise<void> {
@@ -79,18 +83,21 @@ export class ClubsService implements OnModuleInit {
         userId: SEED_USER_ID,
         role: 'MANAGER',
         status: 'ACTIVE',
+        chipBalance: 100_000,
       },
       {
         clubId: 'c2',
         userId: SEED_USER_ID,
         role: 'MEMBER',
         status: 'ACTIVE',
+        chipBalance: 100_000,
       },
       {
         clubId: 'c4',
         userId: SEED_USER_ID,
         role: 'OWNER',
         status: 'ACTIVE',
+        chipBalance: 100_000,
       },
     ]);
 

@@ -216,6 +216,7 @@ export function useTableSocket(
             payload.holdem == null || payload.holdem.phase === "complete"
               ? null
               : (prev?.viewerHoleCards ?? null),
+          viewerClubChipBalance: prev?.viewerClubChipBalance ?? 0,
         };
         queryClient.setQueryData<TableDetailApi>(["table", tid], merged);
         const h = payload.holdem;
