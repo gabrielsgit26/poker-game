@@ -10,9 +10,11 @@ import {
   Post,
   Req,
   Res,
+  UnauthorizedException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService, POKER_SESSION_COOKIE } from './auth.service';
+import { verifyTelegramWebAppInitData } from './telegram-web-app-init-data';
 import { UsersService } from './users.service';
 
 function allowDevLogin(): boolean {
@@ -95,14 +97,45 @@ export class AuthController {
     return { ok: true as const };
   }
 
+  /**
+   * Telegram Mini App: validate `Telegram.WebApp.initData` (HMAC), upsert user, set `poker_sid`.
+   * Requires `TELEGRAM_BOT_TOKEN` in server env.
+   */
   @Post('telegram')
-  telegram() {
-    throw new HttpException(
-      {
-        message:
-          'Telegram initData validation is not implemented yet. Use POST /auth/dev-login in development, or configure the Mini App flow (plan §12 Phase 2).',
-      },
-      HttpStatus.NOT_IMPLEMENTED,
-    );
+  @HttpCode(200)
+  async telegram(
+    @Body() body: { initData?: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const raw = body?.initData;
+    if (typeof raw !== 'string' || !raw.trim()) {
+      throw new BadRequestException('initData is required.');
+    }
+    const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
+    if (!botToken) {
+      throw new HttpException(
+        {
+          message:
+            'Telegram login is not configured. Set TELEGRAM_BOT_TOKEN on the API, or use POST /auth/dev-login in development.',
+        },
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+    const parsed = verifyTelegramWebAppInitData(raw, botToken);
+    if (!parsed) {
+      throw new UnauthorizedException('Invalid or expired Telegram initData.');
+    }
+    const userId = `tg_${parsed.telegramUserId}`;
+    await this.users.findOrCreate(userId, parsed.displayName);
+    const token = await this.auth.createSession(userId);
+    const secure = process.env.NODE_ENV === 'production';
+    res.cookie(POKER_SESSION_COOKIE, token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure,
+      maxAge: 1000 * 60 * 60 * 24 * 14,
+      path: '/',
+    });
+    return { ok: true as const, userId };
   }
 }

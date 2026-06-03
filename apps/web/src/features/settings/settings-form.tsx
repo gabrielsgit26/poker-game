@@ -260,7 +260,11 @@ export function SettingsForm() {
               <code className="text-emerald-200/90">NEXT_PUBLIC_API_URL=/api</code> and{" "}
               <code className="text-emerald-200/90">API_PROXY_TARGET=http://localhost:3001</code>{" "}
               in <code className="text-zinc-400">apps/web/.env.local</code> (see repo{" "}
-              <code className="text-zinc-400">.env.example</code>).
+              <code className="text-zinc-400">.env.example</code>). Use the{" "}
+              <a href="/login" className="text-amber-300 underline-offset-2 hover:underline">
+                /login
+              </a>{" "}
+              page for Telegram Mini App sign-in when the bot token is configured on the API.
             </p>
             <label className="mt-3 block text-xs text-zinc-500" htmlFor="dev-uid">
               User id (letters, digits, <code className="text-zinc-400">._-</code> only)

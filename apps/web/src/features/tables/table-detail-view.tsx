@@ -13,6 +13,7 @@ import { apiBase } from "@/lib/dev-api";
 import { formatChips } from "@/lib/format-chips";
 import {
   fetchTableDetail,
+  isApiRequestError,
   type HoldemGameActionPayload,
   type TableDetailApi,
   postCloseTable,
@@ -100,11 +101,10 @@ export function TableDetailView({ tableId }: { tableId: string }) {
     onTableClosed,
   });
 
-  const { data, isPending, isError, refetch } = useQuery({
+  const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: ["table", tableId],
     queryFn: async () => {
       const d = await fetchTableDetail(tableId);
-      if (!d) throw new Error("offline");
       return {
         ...d,
         holdem: d.holdem ?? null,
@@ -136,8 +136,22 @@ export function TableDetailView({ tableId }: { tableId: string }) {
       void queryClient.invalidateQueries({ queryKey: ["lobby"] });
       void queryClient.invalidateQueries({ queryKey: ["tables"] });
     },
-    onError: (e: Error) => {
-      toast.error(e.message || "Could not join this seat.");
+    onError: (e: unknown) => {
+      const msg = e instanceof Error ? e.message : "Could not join this seat.";
+      const authIssue =
+        isApiRequestError(e) && (e.status === 401 || e.status === 403);
+      toast.error("Could not take seat", {
+        description: msg,
+        duration: 9000,
+        ...(authIssue
+          ? {
+              action: {
+                label: "Sign in",
+                onClick: () => router.push(`/login?next=/tables/${encodeURIComponent(tableId)}`),
+              },
+            }
+          : {}),
+      });
     },
   });
 
@@ -231,21 +245,30 @@ export function TableDetailView({ tableId }: { tableId: string }) {
   }
 
   if (isError || !data) {
+    const msg = error instanceof Error ? error.message : "Request failed.";
+    const authIssue =
+      isApiRequestError(error) && (error.status === 401 || error.status === 403);
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center bg-gradient-to-b from-[#2a1018] to-black px-4 text-center">
-        <p className="max-w-sm text-zinc-300">
-          Could not load this table. Use{" "}
-          <code className="text-amber-200/90">NEXT_PUBLIC_API_URL</code> and a valid table id.
-        </p>
+        <p className="max-w-md text-lg font-semibold text-zinc-100">Could not open this table</p>
+        <p className="mt-3 max-w-md text-sm leading-relaxed text-zinc-400">{msg}</p>
+        {authIssue ? (
+          <Link
+            href={`/login?next=${encodeURIComponent(`/tables/${tableId}`)}`}
+            className="mt-6 inline-flex rounded-full bg-amber-500 px-6 py-2.5 text-sm font-bold text-zinc-950"
+          >
+            Sign in
+          </Link>
+        ) : null}
         <button
           type="button"
-          onClick={() => refetch()}
-          className="mt-4 rounded-full bg-amber-500 px-6 py-2 text-sm font-bold text-zinc-950"
+          onClick={() => void refetch()}
+          className="mt-4 rounded-full border border-white/20 px-6 py-2 text-sm font-semibold text-zinc-200"
         >
           Retry
         </button>
         <Link href="/tables" className="mt-8 text-sm text-amber-300/90 underline-offset-4 hover:underline">
-          Lobby
+          ← All tables
         </Link>
       </div>
     );

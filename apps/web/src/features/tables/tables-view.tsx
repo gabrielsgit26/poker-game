@@ -2,23 +2,28 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { TableCard } from "@/features/lobby/table-card";
 import { fetchClubsList } from "@/lib/lobby/api-clubs";
-import { fetchTablesList, postCreateTable } from "@/lib/lobby/api-tables";
+import { fetchTablesList, isApiRequestError, postCreateTable } from "@/lib/lobby/api-tables";
 import { MOCK_TABLES } from "@/lib/lobby/mock-lobby";
 import type { TableCardModel } from "@/lib/lobby/types";
+import { useAuthSession } from "@/providers/auth-context";
 
 export function TablesView() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const hasApi = Boolean(process.env.NEXT_PUBLIC_API_URL?.trim());
+  const { skipGate, ready, me } = useAuthSession();
+  const sessionOk = skipGate || !ready || (me?.authenticated === true);
 
-  const { data: tables, isPending } = useQuery({
+  const { data: tables, isPending, isError, error, refetch } = useQuery({
     queryKey: ["tables"],
     queryFn: async (): Promise<TableCardModel[]> => {
-      const t = await fetchTablesList();
-      if (t) return t;
-      return MOCK_TABLES;
+      if (!hasApi) return MOCK_TABLES;
+      return fetchTablesList();
     },
   });
 
@@ -55,12 +60,30 @@ export function TablesView() {
         bigBlind: bb,
         maxPlayers,
       }),
-    onSuccess: (row) => {
-      if (row) {
-        void queryClient.invalidateQueries({ queryKey: ["tables"] });
-        void queryClient.invalidateQueries({ queryKey: ["lobby"] });
-        setName("");
-      }
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["tables"] });
+      void queryClient.invalidateQueries({ queryKey: ["lobby"] });
+      setName("");
+      toast.success("Table created", {
+        description: "It appears in the list below — open it to take a seat.",
+      });
+    },
+    onError: (e: unknown) => {
+      const msg = e instanceof Error ? e.message : "Something went wrong.";
+      const authIssue =
+        isApiRequestError(e) && (e.status === 401 || e.status === 403);
+      toast.error("Could not create table", {
+        description: msg,
+        duration: 9000,
+        ...(authIssue
+          ? {
+              action: {
+                label: "Sign in",
+                onClick: () => router.push("/login?next=/tables"),
+              },
+            }
+          : {}),
+      });
     },
   });
 
@@ -72,18 +95,84 @@ export function TablesView() {
     );
   }
 
+  if (isError) {
+    const msg = error instanceof Error ? error.message : "Request failed.";
+    const authIssue =
+      isApiRequestError(error) && (error.status === 401 || error.status === 403);
+    return (
+      <div className="mx-auto max-w-lg space-y-6 px-4 py-10">
+        <h1 className="text-2xl font-semibold text-zinc-50">Tables</h1>
+        <div className="rounded-2xl border border-rose-500/30 bg-rose-950/25 p-5 text-left">
+          <p className="text-sm font-semibold text-rose-100">Could not load tables</p>
+          <p className="mt-2 text-sm leading-relaxed text-rose-200/85">{msg}</p>
+          <p className="mt-3 text-xs text-zinc-500">
+            Check that the API is running and you are signed in (Settings → dev session, or{" "}
+            <Link href="/login?next=/tables" className="text-amber-300 underline-offset-2 hover:underline">
+              Telegram sign-in
+            </Link>
+            ).
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-zinc-950"
+            >
+              Retry
+            </button>
+            {authIssue ? (
+              <Link
+                href="/login?next=/tables"
+                className="rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-zinc-100"
+              >
+                Sign in
+              </Link>
+            ) : null}
+          </div>
+        </div>
+        <Link href="/lobby" className="inline-block text-sm text-amber-300 underline-offset-4 hover:underline">
+          ← Lobby
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-lg space-y-8 px-4 py-6">
       <div>
         <h1 className="text-2xl font-semibold text-zinc-50">Tables</h1>
         <p className="mt-2 text-sm text-zinc-500">
-          Phase 6 — list, create, sit, leave, and close via the Nest API when{" "}
-          <code className="text-zinc-600">NEXT_PUBLIC_API_URL</code> is set. Otherwise
-          you see the static mock list.
+          List and create tables via the Nest API when{" "}
+          <code className="text-zinc-600">NEXT_PUBLIC_API_URL</code> is set. Without it you see a
+          static mock list.
         </p>
       </div>
 
-      {hasApi && joinedClubs.length > 0 ? (
+      {hasApi && !sessionOk ? (
+        <div className="rounded-2xl border border-amber-500/35 bg-gradient-to-br from-amber-950/40 to-zinc-950/80 p-4 shadow-lg ring-1 ring-amber-500/15">
+          <p className="text-sm font-semibold text-amber-100">Sign in required</p>
+          <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
+            Start a dev session in Settings, or open this app inside Telegram after configuring{" "}
+            <code className="text-emerald-200/80">TELEGRAM_BOT_TOKEN</code> on the server.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link
+              href="/login?next=/tables"
+              className="inline-flex items-center justify-center rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-zinc-950"
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/settings"
+              className="inline-flex items-center justify-center rounded-lg border border-white/15 px-4 py-2 text-sm font-medium text-zinc-200"
+            >
+              Dev session
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
+      {hasApi && joinedClubs.length > 0 && sessionOk ? (
         <section
           id="create-table"
           className="rounded-2xl border border-white/10 bg-zinc-900/40 p-4"
@@ -96,8 +185,8 @@ export function TablesView() {
             Create table
           </h2>
           <p className="mt-1 text-xs text-zinc-600">
-            Requires club <strong className="text-zinc-400">owner or manager</strong>{" "}
-            role on the API.
+            Requires club <strong className="text-zinc-400">owner or manager</strong> role on the
+            API. If create fails, the server message is shown below and in a toast.
           </p>
           <div className="mt-4 space-y-3">
             <label className="block text-sm text-zinc-300">
@@ -161,13 +250,13 @@ export function TablesView() {
               </select>
             </label>
             {createMut.isError ? (
-              <p className="text-xs text-rose-300">
-                Create failed — you may need manager rights on that club.
+              <p className="rounded-lg border border-rose-500/25 bg-rose-950/20 px-3 py-2 text-xs text-rose-200">
+                {createMut.error instanceof Error ? createMut.error.message : "Create failed."}
               </p>
             ) : null}
             <button
               type="button"
-              disabled={createMut.isPending || !name.trim() || !clubId}
+              disabled={createMut.isPending || !name.trim() || !clubId || !sessionOk}
               onClick={() => createMut.mutate()}
               className="w-full rounded-xl bg-amber-500/90 py-2.5 text-sm font-semibold text-zinc-950 disabled:opacity-50"
             >
@@ -175,7 +264,7 @@ export function TablesView() {
             </button>
           </div>
         </section>
-      ) : hasApi ? (
+      ) : hasApi && sessionOk ? (
         <p className="rounded-xl border border-dashed border-white/15 bg-zinc-900/30 px-4 py-3 text-sm text-zinc-500">
           Join a club from the lobby to create tables here.
         </p>

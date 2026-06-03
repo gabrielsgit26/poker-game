@@ -86,6 +86,8 @@ Use PixiJS for:
 - Turn highlight
 - Card dealing animation
 
+**Repository implementation (MVP):** the shipped club table on **`/tables/[tableId]`** uses **SVG** for the oval felt + community cards + pot labels, and **HTML/React** for seats, stacks, actions, and **CSS** for chip flights and deal-in motion (details in §6.4). PixiJS remains the recommended upgrade if you later want one WebGL canvas for sprites, particles, or heavier animations.
+
 ## 2.4 Animation
 
 Use:
@@ -862,7 +864,7 @@ Route (canonical in this repo):
 ```
 
 Purpose of **`/play`**: quick **browser-only** heads-up runout (deal + evaluate) for demos and engine QA — **no** MongoDB, **no** Redis, **no** Socket.IO.  
-Purpose of **`/tables/[tableId]`**: **real club table** — HTTP + Socket.IO + Nest **`HoldemCoordinator`** + **PixiJS** felt (see §2.3 Game Rendering).
+Purpose of **`/tables/[tableId]`**: **real club table** — HTTP + Socket.IO + Nest **`HoldemCoordinator`**. **Implementation note (repo):** the live felt uses **SVG + HTML overlays** (`PokerTableSvgView`, `PokerSeatHud`) with CSS-driven chip flights and card deal-in — not a Pixi canvas. PixiJS (§2.3) remains an optional upgrade path if you later need sprite-heavy effects or one WebGL layer.
 
 ### Visual Style
 
@@ -880,27 +882,29 @@ Recommended style:
 
 Include (implementation status in repo):
 
-- **PixiJS** oval felt + board cards + pot + seat stacks on **`/tables/[tableId]`** (WebGL canvas, resize-aware).
-- Oval table (via Pixi graphics)
-- 2–9 player seats (layout from `maxPlayers`)
-- Player name (truncated id in MVP)
-- Stack amount
+- **SVG** oval felt + pot line + community cards (vector board, resize-aware container).
+- **HTML** seat layer: names, stacks, SB/BB/D, hole cards (hero + backs / showdown reveals), turn ring on active seat.
+- **CSS** chip “flights” (street bets → pot; pot → winners on complete) and board / hero hole deal animations.
+- **Outcome ticker** after payouts (compact on-felt copy: pot awarded, split, you collected) — not a full-screen modal.
+- 2–9 player seats (layout from `maxPlayers`; 6-max reference layout wired)
+- Player label (truncated id in MVP)
 - Dealer button
-- Hole cards (viewer only)
-- Community cards
-- Pot amount
+- Community cards + pot amount (numeric; center chip pile is decorative count vs pot)
 - Side pot display *(engine partial — UI TBD)*
-- Turn countdown ring *(HTML clock today; ring on canvas optional polish)*
-- Action buttons *(HTML below canvas)*
+- Turn countdown *(seat HUD ring + server clock)*
+- Action controls *(HTML raise panel + primary actions)*
 
-### PixiJS delivery checklist
+### Live table delivery checklist (SVG/HTML path)
 
 ```txt
-[ ] Chip stacks / sprites (currently numeric labels)
-[ ] Card sprites + flip animation
-[ ] Turn countdown arc on felt
+[x] Oval felt + board + pot labels (SVG)
+[x] Seats + stacks + blinds + hero holes + opponent backs + post-hand reveals (HTML)
+[x] Bet / payout chip motion (CSS)
+[x] Outcome summary on felt (ticker) + configurable post-hand delay before next deal
 [ ] Side pot rows when engine supports full runout
-[ ] Destroy Pixi Application on route leave (implemented in HoldemPixiStage unmount)
+[ ] Optional: Pixi/WebGL layer for heavy sprite work (plan §2.3) if product demands it
+[ ] Sound effects pack
+[ ] Spectator / chat / emotes (plan §8)
 ```
 
 ### Action Controls
@@ -1696,6 +1700,8 @@ Build:
 - Error handling
 - Mobile optimization
 - Video walkthrough preparation
+
+**Repo progress (partial):** table route has deal-in animations, CSS chip movement, on-felt outcome ticker, and tuned timing between hands; mobile-first table shell. **Still to match this phase:** sound design, richer winner celebration, full polish pass on non-table pages, demo video.
 
 Result:
 

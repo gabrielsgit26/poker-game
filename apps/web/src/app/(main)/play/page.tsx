@@ -7,7 +7,7 @@ import { CardFace } from "@/components/card-face";
 
 /**
  * `/play` — **offline lab**: heads-up all-in runout in the browser only (plan §3-day demo / engine QA).
- * **Real multiplayer** with clubs, seats, and Socket.IO is **`/tables/[tableId]`** (PixiJS table + server engine).
+ * **Real multiplayer** with clubs, seats, and Socket.IO is **`/tables/[tableId]`** (SVG/HTML table UI + Nest + Redis).
  */
 export default function PlayPage() {
   const [run, setRun] = useState<HeadsUpRunout | null>(null);
@@ -26,7 +26,7 @@ export default function PlayPage() {
         <p className="mt-2 text-sm text-zinc-400">
           This route is intentionally <strong>not</strong> the live club table. It runs a
           two-player all-in preflop runout entirely in your browser to exercise the local
-          deck + evaluator. For real tables (PixiJS + Nest + Redis), open a table from the
+          deck + evaluator. For real tables (SVG seat HUD + Nest + Redis), open a table from the
           lobby under <strong>/tables/[tableId]</strong>.
         </p>
         <Link

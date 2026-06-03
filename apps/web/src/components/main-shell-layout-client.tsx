@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { MainAuthGate } from "@/components/main-auth-gate";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 
 /** Live hand at `/tables/:id` — fullscreen table (hide bottom tab bar like ClubGG). */
@@ -15,15 +16,17 @@ export function MainShellLayoutClient({ children }: { children: React.ReactNode 
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <main
-        className={
-          immersiveTable
-            ? "flex min-h-0 flex-1 flex-col pt-0 pb-0"
-            : "flex-1 pb-28 pt-4"
-        }
-      >
-        {children}
-      </main>
+      <MainAuthGate>
+        <main
+          className={
+            immersiveTable
+              ? "flex min-h-0 flex-1 flex-col pt-0 pb-0"
+              : "flex-1 pb-28 pt-4"
+          }
+        >
+          {children}
+        </main>
+      </MainAuthGate>
       {immersiveTable ? null : <MobileBottomNav />}
     </div>
   );

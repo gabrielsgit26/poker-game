@@ -5,6 +5,7 @@ import type {
   LobbyUser,
   TableCardModel,
 } from "./types";
+import { apiBase } from "../dev-api";
 import { fetchClubsList } from "./api-clubs";
 import { fetchTablesList } from "./api-tables";
 
@@ -171,13 +172,18 @@ export async function fetchLobbySnapshot(
 ): Promise<LobbySnapshot> {
   await delay(550 + Math.floor(Math.random() * 450));
 
-  const remoteTables = await fetchTablesList();
+  let remoteTables: TableCardModel[] | null = null;
+  if (apiBase()) {
+    try {
+      remoteTables = await fetchTablesList();
+    } catch {
+      remoteTables = null;
+    }
+  }
   const usingApiTables = remoteTables !== null;
-  const tables: TableCardModel[] = usingApiTables
-    ? remoteTables
-    : [...MOCK_TABLES];
+  const tables: TableCardModel[] = usingApiTables ? [...remoteTables!] : [...MOCK_TABLES];
   const tableCountsByClub = usingApiTables
-    ? tableCountByClubFromList(remoteTables)
+    ? tableCountByClubFromList(remoteTables!)
     : mockActiveTableCountByClub();
 
   const remote = await fetchClubsList();

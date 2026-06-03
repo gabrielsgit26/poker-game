@@ -2,18 +2,19 @@ import { apiBase, credFetch } from "@/lib/dev-api";
 import type { TableCardModel } from "@/lib/lobby/types";
 import type { HoldemPublicSnapshot } from "@telegram-poker/shared/poker-engine";
 
-export async function fetchTablesList(): Promise<TableCardModel[] | null> {
-  const base = apiBase();
-  if (!base) return null;
-  try {
-    const res = await credFetch(`${base}/tables`, {
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as TableCardModel[];
-  } catch {
-    return null;
+/** Thrown when a REST call returns a non-OK status (includes Nest `message` body when JSON). */
+export class ApiRequestError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = status;
   }
+}
+
+export function isApiRequestError(e: unknown): e is ApiRequestError {
+  return e instanceof ApiRequestError;
 }
 
 export interface TableSeatApi {
@@ -53,7 +54,7 @@ async function readJsonOrThrow<T>(res: Response): Promise<T> {
     try {
       parsed = JSON.parse(text) as unknown;
     } catch {
-      if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
+      if (!res.ok) throw new ApiRequestError(res.status, text || `HTTP ${res.status}`);
       throw new Error("Invalid response from server.");
     }
   }
@@ -61,9 +62,21 @@ async function readJsonOrThrow<T>(res: Response): Promise<T> {
     const j = parsed as { message?: string | string[] } | null;
     const m = j?.message;
     const msg = Array.isArray(m) ? m.join(". ") : typeof m === "string" ? m : `Request failed (${res.status})`;
-    throw new Error(msg);
+    throw new ApiRequestError(res.status, msg);
   }
   return (parsed ?? {}) as T;
+}
+
+/** List tables — throws {@link ApiRequestError} on HTTP errors (caller should catch when mixing with mocks). */
+export async function fetchTablesList(): Promise<TableCardModel[]> {
+  const base = apiBase();
+  if (!base) {
+    throw new Error("API is not configured (set NEXT_PUBLIC_API_URL).");
+  }
+  const res = await credFetch(`${base}/tables`, {
+    cache: "no-store",
+  });
+  return readJsonOrThrow<TableCardModel[]>(res);
 }
 
 export interface TableDetailApi {
@@ -84,20 +97,15 @@ export interface TableDetailApi {
   viewerClubChipBalance: number;
 }
 
-export async function fetchTableDetail(
-  tableId: string,
-): Promise<TableDetailApi | null> {
+export async function fetchTableDetail(tableId: string): Promise<TableDetailApi> {
   const base = apiBase();
-  if (!base) return null;
-  try {
-    const res = await credFetch(`${base}/tables/${encodeURIComponent(tableId)}`, {
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as TableDetailApi;
-  } catch {
-    return null;
+  if (!base) {
+    throw new Error("API is not configured (set NEXT_PUBLIC_API_URL).");
   }
+  const res = await credFetch(`${base}/tables/${encodeURIComponent(tableId)}`, {
+    cache: "no-store",
+  });
+  return readJsonOrThrow<TableDetailApi>(res);
 }
 
 export async function postCreateTable(body: {
@@ -108,16 +116,17 @@ export async function postCreateTable(body: {
   maxPlayers?: number;
   timerSeconds?: number;
   minBuyIn?: number;
-}): Promise<TableCardModel | null> {
+}): Promise<TableCardModel> {
   const base = apiBase();
-  if (!base) return null;
+  if (!base) {
+    throw new Error("API is not configured (set NEXT_PUBLIC_API_URL).");
+  }
   const res = await credFetch(`${base}/tables`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) return null;
-  return (await res.json()) as TableCardModel;
+  return readJsonOrThrow<TableCardModel>(res);
 }
 
 export async function postSitAtSeat(

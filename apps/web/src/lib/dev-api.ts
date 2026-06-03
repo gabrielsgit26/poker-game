@@ -20,6 +20,11 @@ export function apiBase(): string | null {
   return raw.replace(/\/$/, "");
 }
 
+/** False when `NEXT_PUBLIC_API_URL` is unset — client skips session gate (offline / static demo). */
+export function hasAuthApi(): boolean {
+  return Boolean(apiBase());
+}
+
 /** Build `https://host/v` or `/api/v` when using Next rewrites (see `API_PROXY_TARGET`). */
 export function apiUrl(versionLessPath: string): string | null {
   const base = apiBase();
