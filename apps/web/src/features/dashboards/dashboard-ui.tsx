@@ -232,6 +232,63 @@ export function DashboardSectionHeader({
   );
 }
 
+/** Offset pagination for directory lists (pairs with server `skip` / `limit` / `total`). */
+export function DashboardPagination({
+  skip,
+  limit,
+  total,
+  onSkipChange,
+  noun = "results",
+}: {
+  skip: number;
+  limit: number;
+  total: number;
+  onSkipChange: (nextSkip: number) => void;
+  noun?: string;
+}) {
+  if (total <= 0) return null;
+  /** Single full page at offset 0 — omit pager chrome. */
+  if (total <= limit && skip <= 0) return null;
+  const start = skip + 1;
+  const end = Math.min(skip + limit, total);
+  const canPrev = skip > 0;
+  const canNext = skip + limit < total;
+  const btn =
+    "inline-flex min-h-[36px] items-center justify-center rounded-lg border border-white/[0.1] bg-zinc-900/50 px-3.5 py-1.5 text-[12px] font-semibold text-zinc-200 transition hover:border-amber-500/25 hover:bg-zinc-900 disabled:pointer-events-none disabled:opacity-35";
+  return (
+    <nav
+      className="mt-4 flex flex-col gap-3 border-t border-white/[0.06] pt-4 sm:flex-row sm:items-center sm:justify-between"
+      aria-label="Pagination"
+    >
+      <p className="text-[12px] text-zinc-500">
+        Showing{" "}
+        <span className="font-medium tabular-nums text-zinc-400">{start}</span>
+        <span className="text-zinc-600">–</span>
+        <span className="font-medium tabular-nums text-zinc-400">{end}</span> of{" "}
+        <span className="font-medium tabular-nums text-zinc-400">{total}</span> {noun}
+      </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={!canPrev}
+          onClick={() => onSkipChange(Math.max(0, skip - limit))}
+          className={btn}
+        >
+          Previous
+        </button>
+        <button
+          type="button"
+          disabled={!canNext}
+          onClick={() => onSkipChange(skip + limit)}
+          className={btn}
+        >
+          Next
+        </button>
+      </div>
+    </nav>
+  );
+}
+
 /** Page chrome: subtle ambient background, constrained width, executive header. */
 export function DashboardPageShell({
   eyebrow,

@@ -2,13 +2,14 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   DashboardEmptyState,
   DashboardFooterNav,
   DashboardListSkeleton,
   DashboardPageShell,
+  DashboardPagination,
   DashboardPanel,
   DashboardQueryError,
   DashboardSectionHeader,
@@ -24,17 +25,22 @@ import {
   fetchAdminUsers,
   postAdminChipGrant,
 } from "@/lib/admin/api-admin";
+import { AdminSignupActivitySection } from "@/features/admin/admin-signup-activity-section";
 import { formatAbsoluteShort, formatRelativeTime } from "@/lib/format-dashboard-time";
 import { formatChips } from "@/lib/format-chips";
 import { useAuthSession } from "@/providers/auth-context";
 
 type AdminTab = "overview" | "clubs" | "users" | "grants";
 
+const DIRECTORY_PAGE_SIZE = 50;
+
 export function AdminDashboardView() {
   const queryClient = useQueryClient();
   const { skipGate, ready, me } = useAuthSession();
   const isAdmin = me?.authenticated === true && me.isPlatformAdmin === true;
   const [tab, setTab] = useState<AdminTab>("overview");
+  const [clubsSkip, setClubsSkip] = useState(0);
+  const [usersSkip, setUsersSkip] = useState(0);
 
   const overviewQ = useQuery({
     queryKey: ["admin", "overview"],
@@ -47,9 +53,9 @@ export function AdminDashboardView() {
   });
 
   const clubsQ = useQuery({
-    queryKey: ["admin", "clubs"],
+    queryKey: ["admin", "clubs", clubsSkip, DIRECTORY_PAGE_SIZE],
     queryFn: async () => {
-      const r = await fetchAdminClubs();
+      const r = await fetchAdminClubs(clubsSkip, DIRECTORY_PAGE_SIZE);
       if (!r) throw new Error("Could not load clubs directory.");
       return r;
     },
@@ -57,14 +63,32 @@ export function AdminDashboardView() {
   });
 
   const usersQ = useQuery({
-    queryKey: ["admin", "users"],
+    queryKey: ["admin", "users", usersSkip, DIRECTORY_PAGE_SIZE],
     queryFn: async () => {
-      const r = await fetchAdminUsers(120);
+      const r = await fetchAdminUsers(usersSkip, DIRECTORY_PAGE_SIZE);
       if (!r) throw new Error("Could not load users.");
       return r;
     },
     enabled: ready && isAdmin && tab === "users",
   });
+
+  useEffect(() => {
+    const d = clubsQ.data;
+    if (!d || d.total === 0 || d.items.length > 0) return;
+    if (d.skip > 0) {
+      const lastSkip = Math.max(0, (Math.ceil(d.total / d.limit) - 1) * d.limit);
+      setClubsSkip(lastSkip);
+    }
+  }, [clubsQ.data]);
+
+  useEffect(() => {
+    const d = usersQ.data;
+    if (!d || d.total === 0 || d.items.length > 0) return;
+    if (d.skip > 0) {
+      const lastSkip = Math.max(0, (Math.ceil(d.total / d.limit) - 1) * d.limit);
+      setUsersSkip(lastSkip);
+    }
+  }, [usersQ.data]);
 
   const [clubId, setClubId] = useState("");
   const [targetUserId, setTargetUserId] = useState("");
@@ -93,6 +117,8 @@ export function AdminDashboardView() {
       setNote("");
       void queryClient.invalidateQueries({ queryKey: ["admin", "overview"] });
       void queryClient.invalidateQueries({ queryKey: ["admin", "clubs"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "report", "signups"] });
       void queryClient.invalidateQueries({ queryKey: ["club"] });
       void queryClient.invalidateQueries({ queryKey: ["lobby"] });
     },
@@ -213,7 +239,7 @@ export function AdminDashboardView() {
           aria-controls="admin-panel-clubs"
           active={tab === "clubs"}
           onClick={() => setTab("clubs")}
-          badge={clubsQ.data?.length}
+          badge={clubsQ.data?.total}
         >
           Clubs
         </DashboardTabButton>
@@ -222,7 +248,7 @@ export function AdminDashboardView() {
           aria-controls="admin-panel-users"
           active={tab === "users"}
           onClick={() => setTab("users")}
-          badge={usersQ.data?.length}
+          badge={usersQ.data?.total}
         >
           Users
         </DashboardTabButton>
@@ -260,7 +286,10 @@ export function AdminDashboardView() {
               </div>
             </div>
           ) : (
-            <StatMetricGrid metrics={overviewMetrics} />
+            <>
+              <StatMetricGrid metrics={overviewMetrics} />
+              <AdminSignupActivitySection />
+            </>
           )}
         </DashboardPanel>
       ) : tab === "clubs" ? (
@@ -270,7 +299,7 @@ export function AdminDashboardView() {
             description="Alphabetical order. Member counts count only ACTIVE memberships."
             aside={
               !clubsQ.isPending && clubsQ.data ? (
-                <span className="tabular-nums text-zinc-400">{clubsQ.data.length} total</span>
+                <span className="tabular-nums text-zinc-400">{clubsQ.data.total} clubs</span>
               ) : null
             }
           />
@@ -281,14 +310,15 @@ export function AdminDashboardView() {
             />
           ) : clubsQ.isPending ? (
             <DashboardListSkeleton rows={8} />
-          ) : !clubsQ.data?.length ? (
+          ) : clubsQ.data && clubsQ.data.total === 0 ? (
             <DashboardEmptyState
               title="No clubs"
               description="Clubs created from the lobby will appear here with identifiers and live member counts."
             />
-          ) : (
+          ) : clubsQ.data ? (
+            <>
             <ul className="max-h-[min(60vh,28rem)] divide-y divide-white/[0.05] overflow-y-auto overscroll-contain rounded-xl border border-white/[0.06] bg-zinc-900/25 [-webkit-overflow-scrolling:touch]">
-              {clubsQ.data.map((c) => (
+              {clubsQ.data.items.map((c) => (
                 <li key={c.id}>
                   <Link
                     href={`/clubs/${encodeURIComponent(c.id)}`}
@@ -331,14 +361,26 @@ export function AdminDashboardView() {
                 </li>
               ))}
             </ul>
-          )}
+            <DashboardPagination
+              skip={clubsQ.data.skip}
+              limit={clubsQ.data.limit}
+              total={clubsQ.data.total}
+              noun="clubs"
+              onSkipChange={setClubsSkip}
+            />
+            </>
+          ) : null}
         </DashboardPanel>
       ) : tab === "users" ? (
         <DashboardPanel id="admin-panel-users" role="tabpanel" aria-labelledby="admin-tab-users">
           <DashboardSectionHeader
             title="Recent accounts"
-            description="Sorted by profile updatedAt (newest first). List capped at 120 rows per request."
-            aside={<span className="text-zinc-400">Up to 120</span>}
+            description={`Sorted by profile updatedAt (newest first). ${DIRECTORY_PAGE_SIZE} accounts per page.`}
+            aside={
+              usersQ.data ? (
+                <span className="tabular-nums text-zinc-400">{usersQ.data.total} users</span>
+              ) : null
+            }
           />
           {usersQ.isError ? (
             <DashboardQueryError
@@ -347,11 +389,12 @@ export function AdminDashboardView() {
             />
           ) : usersQ.isPending ? (
             <DashboardListSkeleton rows={8} />
-          ) : !usersQ.data?.length ? (
+          ) : usersQ.data && usersQ.data.total === 0 ? (
             <DashboardEmptyState title="No users" description="The users endpoint returned an empty list." />
-          ) : (
+          ) : usersQ.data ? (
+            <>
             <ul className="max-h-[min(60vh,28rem)] space-y-2 overflow-y-auto overscroll-contain pr-0.5 [-webkit-overflow-scrolling:touch]">
-              {usersQ.data.map((u) => {
+              {usersQ.data.items.map((u) => {
                 const initials = dashboardInitials(u.displayName, u.userId);
                 return (
                   <li
@@ -382,7 +425,15 @@ export function AdminDashboardView() {
                 );
               })}
             </ul>
-          )}
+            <DashboardPagination
+              skip={usersQ.data.skip}
+              limit={usersQ.data.limit}
+              total={usersQ.data.total}
+              noun="users"
+              onSkipChange={setUsersSkip}
+            />
+            </>
+          ) : null}
         </DashboardPanel>
       ) : (
         <DashboardPanel id="admin-panel-grants" role="tabpanel" aria-labelledby="admin-tab-grants">

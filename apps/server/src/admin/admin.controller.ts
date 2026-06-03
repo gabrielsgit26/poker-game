@@ -34,6 +34,14 @@ export class AdminController {
     return this.admin.getOverview();
   }
 
+  /** Daily new users & clubs (`createdAt`, UTC buckets) for admin charts. */
+  @Get('report/signups')
+  async signupReport(@Req() req: Request, @Query('days') days?: string) {
+    this.assertPlatformAdmin(req);
+    const n = days != null ? Number.parseInt(days, 10) : 14;
+    return this.admin.getSignupActivity(Number.isFinite(n) ? n : 14);
+  }
+
   /** Club directory page with active member counts (platform admin). */
   @Get('clubs')
   async clubDirectory(

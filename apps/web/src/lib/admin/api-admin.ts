@@ -33,28 +33,74 @@ export interface AdminUserRowApi {
   updatedAt: string | null;
 }
 
-export async function fetchAdminClubs(): Promise<AdminClubRowApi[] | null> {
+export interface AdminPagedApi<T> {
+  items: T[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+export interface AdminSignupDayApi {
+  day: string;
+  newUsers: number;
+  newClubs: number;
+}
+
+export interface AdminSignupReportApi {
+  days: AdminSignupDayApi[];
+  rangeStart: string;
+  rangeEnd: string;
+}
+
+export async function fetchAdminSignupReport(days = 14): Promise<AdminSignupReportApi | null> {
   const base = apiBase();
   if (!base) return null;
+  const d = Math.min(90, Math.max(1, Math.floor(days)));
   try {
-    const res = await credFetch(`${base}/admin/clubs`, { cache: "no-store" });
+    const res = await credFetch(
+      `${base}/admin/report/signups?days=${encodeURIComponent(String(d))}`,
+      { cache: "no-store" },
+    );
     if (!res.ok) return null;
-    return (await res.json()) as AdminClubRowApi[];
+    return (await res.json()) as AdminSignupReportApi;
   } catch {
     return null;
   }
 }
 
-export async function fetchAdminUsers(limit = 100): Promise<AdminUserRowApi[] | null> {
+export async function fetchAdminClubs(
+  skip = 0,
+  limit = 50,
+): Promise<AdminPagedApi<AdminClubRowApi> | null> {
   const base = apiBase();
   if (!base) return null;
   try {
-    const res = await credFetch(
-      `${base}/admin/users?limit=${encodeURIComponent(String(limit))}`,
-      { cache: "no-store" },
-    );
+    const q = new URLSearchParams({
+      skip: String(skip),
+      limit: String(limit),
+    });
+    const res = await credFetch(`${base}/admin/clubs?${q}`, { cache: "no-store" });
     if (!res.ok) return null;
-    return (await res.json()) as AdminUserRowApi[];
+    return (await res.json()) as AdminPagedApi<AdminClubRowApi>;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchAdminUsers(
+  skip = 0,
+  limit = 50,
+): Promise<AdminPagedApi<AdminUserRowApi> | null> {
+  const base = apiBase();
+  if (!base) return null;
+  try {
+    const q = new URLSearchParams({
+      skip: String(skip),
+      limit: String(limit),
+    });
+    const res = await credFetch(`${base}/admin/users?${q}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return (await res.json()) as AdminPagedApi<AdminUserRowApi>;
   } catch {
     return null;
   }

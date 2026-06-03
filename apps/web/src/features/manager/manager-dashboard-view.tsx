@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import {
   DashboardEmptyState,
   DashboardFooterNav,
   DashboardListSkeleton,
   DashboardPageShell,
+  DashboardPagination,
   DashboardPanel,
   DashboardQueryError,
   DashboardSectionHeader,
@@ -27,6 +28,8 @@ import type { TableCardModel } from "@/lib/lobby/types";
 
 type ManagerTab = "overview" | "clubs" | "tables";
 
+const TABLES_PAGE_SIZE = 25;
+
 function tableStatusClass(s: TableCardModel["playStatus"]): string {
   if (s === "PLAYING") return "bg-emerald-950/90 text-emerald-200 ring-1 ring-emerald-500/35";
   if (s === "FULL") return "bg-sky-950/90 text-sky-200 ring-1 ring-sky-500/35";
@@ -35,6 +38,7 @@ function tableStatusClass(s: TableCardModel["playStatus"]): string {
 
 export function ManagerDashboardView() {
   const [tab, setTab] = useState<ManagerTab>("overview");
+  const [tablesSkip, setTablesSkip] = useState(0);
 
   const { data: clubs, isPending, isError, error, refetch } = useQuery({
     queryKey: ["lobby", "clubs-for-manager"],
@@ -79,6 +83,23 @@ export function ManagerDashboardView() {
     const all = tablesQ.data ?? [];
     return all.filter((t) => managedIds.has(t.clubId));
   }, [tablesQ.data, managedIds]);
+
+  const pagedManagedTables = useMemo(
+    () => managedTables.slice(tablesSkip, tablesSkip + TABLES_PAGE_SIZE),
+    [managedTables, tablesSkip],
+  );
+
+  useEffect(() => {
+    const len = managedTables.length;
+    if (len === 0) {
+      setTablesSkip(0);
+      return;
+    }
+    if (tablesSkip >= len) {
+      const lastSkip = Math.max(0, (Math.ceil(len / TABLES_PAGE_SIZE) - 1) * TABLES_PAGE_SIZE);
+      setTablesSkip(lastSkip);
+    }
+  }, [managedTables, tablesSkip]);
 
   const overview = useMemo(() => {
     let pendingJoin = 0;
@@ -332,8 +353,9 @@ export function ManagerDashboardView() {
               description="When players create tables under your clubs, they appear here with stakes, buy-in, and occupancy."
             />
           ) : (
+            <>
             <ul className="max-h-[min(60vh,28rem)] divide-y divide-white/[0.05] overflow-y-auto overscroll-contain rounded-xl border border-white/[0.06] bg-zinc-900/25 [-webkit-overflow-scrolling:touch]">
-              {managedTables.map((t) => (
+              {pagedManagedTables.map((t) => (
                 <li key={t.id}>
                   <Link
                     href={`/tables/${encodeURIComponent(t.id)}`}
@@ -371,6 +393,14 @@ export function ManagerDashboardView() {
                 </li>
               ))}
             </ul>
+            <DashboardPagination
+              skip={tablesSkip}
+              limit={TABLES_PAGE_SIZE}
+              total={managedTables.length}
+              noun="tables"
+              onSkipChange={setTablesSkip}
+            />
+            </>
           )}
         </DashboardPanel>
       )}

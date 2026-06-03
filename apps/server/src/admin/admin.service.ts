@@ -36,6 +36,32 @@ export interface AdminPagedDto<T> {
   limit: number;
 }
 
+export interface AdminSignupDayDto {
+  /** UTC calendar date `YYYY-MM-DD`. */
+  day: string;
+  newUsers: number;
+  newClubs: number;
+}
+
+export interface AdminSignupReportDto {
+  days: AdminSignupDayDto[];
+  rangeStart: string;
+  rangeEnd: string;
+}
+
+function buildUtcDayLabels(dayCount: number): { labels: string[]; rangeStart: Date } {
+  const n = Math.min(90, Math.max(1, Math.floor(dayCount)));
+  const end = new Date();
+  const utcMidnight = Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate());
+  const labels: string[] = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const ms = utcMidnight - i * 86400000;
+    labels.push(new Date(ms).toISOString().slice(0, 10));
+  }
+  const rangeStart = new Date(`${labels[0]}T00:00:00.000Z`);
+  return { labels, rangeStart };
+}
+
 @Injectable()
 export class AdminService {
   constructor(
@@ -109,5 +135,46 @@ export class AdminService {
       };
     });
     return { items, total, skip: sk, limit: cap };
+  }
+
+  /** Daily new users & clubs by `createdAt` (UTC day buckets). */
+  async getSignupActivity(dayCount = 14): Promise<AdminSignupReportDto> {
+    const { labels, rangeStart } = buildUtcDayLabels(dayCount);
+    const [userBuckets, clubBuckets] = await Promise.all([
+      this.userModel.aggregate<{ _id: string; c: number }>([
+        { $match: { createdAt: { $gte: rangeStart } } },
+        {
+          $group: {
+            _id: {
+              $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: 'UTC' },
+            },
+            c: { $sum: 1 },
+          },
+        },
+      ]),
+      this.clubModel.aggregate<{ _id: string; c: number }>([
+        { $match: { createdAt: { $gte: rangeStart } } },
+        {
+          $group: {
+            _id: {
+              $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: 'UTC' },
+            },
+            c: { $sum: 1 },
+          },
+        },
+      ]),
+    ]);
+    const um = new Map(userBuckets.map((b) => [b._id, b.c]));
+    const cm = new Map(clubBuckets.map((b) => [b._id, b.c]));
+    const days: AdminSignupDayDto[] = labels.map((day) => ({
+      day,
+      newUsers: um.get(day) ?? 0,
+      newClubs: cm.get(day) ?? 0,
+    }));
+    return {
+      days,
+      rangeStart: labels[0],
+      rangeEnd: labels[labels.length - 1],
+    };
   }
 }
