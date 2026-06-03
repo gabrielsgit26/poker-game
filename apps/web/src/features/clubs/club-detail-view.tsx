@@ -16,6 +16,7 @@ import {
   postManagerChipAdjustment,
 } from "@/lib/lobby/api-clubs";
 import { formatChips } from "@/lib/format-chips";
+import { useAuthActions } from "@/providers/auth-context";
 
 function csvEscape(s: string): string {
   return `"${String(s).replace(/"/g, '""')}"`;
@@ -67,6 +68,7 @@ function chipKindLabel(kind: string): string {
 
 export function ClubDetailView({ clubId }: { clubId: string }) {
   const queryClient = useQueryClient();
+  const { refresh } = useAuthActions();
 
   const { data, isPending, isError, refetch } = useQuery({
     queryKey: ["club", clubId],
@@ -196,6 +198,8 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
     },
     onSuccess: () => {
       toast.success("Cash-out request updated.");
+      void refresh();
+      void queryClient.invalidateQueries({ queryKey: ["lobby"] });
       void queryClient.invalidateQueries({ queryKey: ["club", clubId] });
       void queryClient.invalidateQueries({ queryKey: ["club", clubId, "chip-ledger"] });
       void queryClient.invalidateQueries({ queryKey: ["club", clubId, "cash-out-requests"] });

@@ -2,7 +2,7 @@ import { formatChips } from "@/lib/format-chips";
 import type { ProfileStats } from "@/lib/profile/types";
 
 const items: {
-  key: keyof ProfileStats;
+  key: "handsPlayed" | "winRatePct" | "biggestPotWon" | "netChips";
   label: string;
   format: (v: number) => string;
 }[] = [
@@ -21,6 +21,7 @@ const items: {
 ];
 
 export function StatsCards({ stats }: { stats: ProfileStats }) {
+  const showDetailStats = stats.tracked === true;
   return (
     <section aria-labelledby="stats-heading">
       <h2
@@ -29,6 +30,12 @@ export function StatsCards({ stats }: { stats: ProfileStats }) {
       >
         Stats
       </h2>
+      {!showDetailStats ? (
+        <p className="mb-3 rounded-lg border border-white/10 bg-zinc-900/40 px-3 py-2 text-xs leading-relaxed text-zinc-500">
+          Hand history and win-rate metrics are not recorded yet. Net chips below
+          reflects your club chip ledger (buy-ins, cash-outs, and adjustments).
+        </p>
+      ) : null}
       <div className="grid grid-cols-2 gap-3">
         {items.map(({ key, label, format }) => (
           <div
@@ -39,7 +46,9 @@ export function StatsCards({ stats }: { stats: ProfileStats }) {
               {label}
             </p>
             <p className="mt-1 text-lg font-semibold tabular-nums text-zinc-100">
-              {format(stats[key])}
+              {!showDetailStats && key !== "netChips"
+                ? "—"
+                : format(stats[key])}
             </p>
           </div>
         ))}

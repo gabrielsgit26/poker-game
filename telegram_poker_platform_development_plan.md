@@ -857,13 +857,8 @@ Route (canonical in this repo):
 
 > **Note:** The plan originally used `/table/[tableId]`. The Next.js App Router implementation uses **`/tables/[tableId]`** under `(main)` so table list and detail share the same segment. Product behaviour matches §6.4 (real-time game screen).
 
-**Separate offline route (engine lab, not multiplayer):**
+**Historical note (offline lab):** an earlier **`/play`** route provided a browser-only heads-up runout for demos. It has been **removed from the shipped web app** so navigation centers on **`/wallet`** (platform play-money balance and admin-gated deposit/withdraw requests) and **`/tables/[tableId]`** (real club tables). The NL hold’em engine remains in **`packages/shared`** for **`HoldemCoordinator`** and automated tests.
 
-```txt
-/play
-```
-
-Purpose of **`/play`**: quick **browser-only** heads-up runout (deal + evaluate) for demos and engine QA — **no** MongoDB, **no** Redis, **no** Socket.IO.  
 Purpose of **`/tables/[tableId]`**: **real club table** — HTTP + Socket.IO + Nest **`HoldemCoordinator`**. **Implementation note (repo):** the live felt uses **SVG + HTML overlays** (`PokerTableSvgView`, `PokerSeatHud`) with CSS-driven chip flights and card deal-in — not a Pixi canvas. PixiJS (§2.3) remains an optional upgrade path if you later need sprite-heavy effects or one WebGL layer.
 
 ### Visual Style
@@ -1533,7 +1528,7 @@ Build:
 - Lobby header
 - Balance display
 - Club cards
-- Table cards
+- Table cards with a single primary CTA to **`/tables/[id]`** (no separate offline practice entry)
 - Filters
 - Empty states
 - Loading skeletons
@@ -1639,13 +1634,16 @@ Real-time multiplayer poker works.
 
 Build:
 
-- User wallet
-- Club chip balance
-- Buy-in
-- Cash-out request
-- Manager credit adjustment
-- Admin credit adjustment
-- Transaction history
+- User wallet (club chip balance per membership)
+- **Platform wallet** (play-money `platformBalanceChips` on the user; separate from club wallets)
+- **Platform requests:** player-initiated **deposit** and **withdrawal** rows (`platform_wallet_requests`) with **PENDING → APPROVED | REJECTED | CANCELLED** (player or admin may cancel pending items per product rules)
+- **Admin console:** list/filter queue, **approve / reject / cancel**, optional admin note; **daily UTC report** of approved deposit vs withdrawal volume
+- REST: **`GET /wallet/balance`**, **`GET /wallet/requests`**, **`POST /wallet/deposit-requests`**, **`POST /wallet/withdrawal-requests`**, **`PATCH /wallet/requests/:id/cancel`** (player); **`GET /admin/wallet/requests`**, **`PATCH /admin/wallet/requests/:id`**, **`GET /admin/wallet/report/daily`** (platform admin)
+- Web **`/wallet`** page: request forms, detailed history table, link from **Profile** and **Lobby** balance; bottom nav **Wallet** with icon
+- Buy-in / cash-out at the **table/club** layer (existing club ledger) remains in scope alongside the platform wallet above
+- Manager credit adjustment (club members)
+- Admin club-chip grant (**`PLATFORM_ADJUST`**)
+- Transaction history (club ledger + platform request rows as applicable)
 
 Result:
 
@@ -1661,7 +1659,7 @@ Build:
 - Master admin dashboard
 - User management
 - Club management
-- Credit management
+- Credit management (club grants + **platform wallet queue** + **wallet daily report**)
 - Rake settings
 - Basic reports
 
@@ -1949,11 +1947,13 @@ Use side panels only on larger screens
 
 ## 18.4 Bottom Navigation
 
-Use bottom navigation for main player pages:
+Use bottom navigation for main player pages (repo implementation):
 
 ```txt
-Lobby | Clubs | Profile | Settings
+Lobby | Wallet | Tables | Profile | Settings
 ```
+
+Each tab uses a **small inline icon** (lobby home, wallet, table oval, user, settings) plus a label and active-state accent.
 
 Bottom navigation should be:
 

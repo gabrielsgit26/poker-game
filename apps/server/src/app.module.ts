@@ -10,6 +10,8 @@ import { ClubsModule } from './clubs/clubs.module';
 import { HealthModule } from './health/health.module';
 import { RedisModule } from './redis/redis.module';
 import { TablesModule } from './tables/tables.module';
+import { WalletModule } from './wallet/wallet.module';
+import { ProfileModule } from './profile/profile.module';
 
 @Module({
   imports: [
@@ -29,7 +31,9 @@ import { TablesModule } from './tables/tables.module';
     AuthModule,
     ClubsModule,
     TablesModule,
+    WalletModule,
     AdminModule,
+    ProfileModule,
   ],
   controllers: [AppController],
   providers: [AppService],

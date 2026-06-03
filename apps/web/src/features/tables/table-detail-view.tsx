@@ -20,7 +20,7 @@ import {
   postLeaveSeat,
   postSitAtSeat,
 } from "@/lib/lobby/api-tables";
-import { useAuthUserId } from "@/providers/auth-context";
+import { useAuthUserId, useAuthActions } from "@/providers/auth-context";
 
 type TableGameHostProps = {
   data: TableDetailApi;
@@ -59,7 +59,7 @@ function TableGameHost({
         router.push("/tables");
       },
       onNavigate: (to) => {
-        const paths = { lobby: "/lobby", tables: "/tables", play: "/play", settings: "/settings" } as const;
+        const paths = { lobby: "/lobby", tables: "/tables", wallet: "/wallet", settings: "/settings" } as const;
         router.push(paths[to]);
       },
       onCloseTable: onCloseTable,
@@ -86,6 +86,7 @@ export function TableDetailView({ tableId }: { tableId: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const authUserId = useAuthUserId();
+  const { refresh } = useAuthActions();
   const live = Boolean(apiBase());
 
   const [buyInOpen, setBuyInOpen] = useState(false);
@@ -133,6 +134,7 @@ export function TableDetailView({ tableId }: { tableId: string }) {
       setBuyInOpen(false);
       setBuyInSeat(null);
       toast.success("You took a seat.");
+      void refresh();
       void queryClient.invalidateQueries({ queryKey: ["lobby"] });
       void queryClient.invalidateQueries({ queryKey: ["tables"] });
       void queryClient.invalidateQueries({
@@ -162,6 +164,7 @@ export function TableDetailView({ tableId }: { tableId: string }) {
     mutationFn: () => postLeaveSeat(tableId),
     onSuccess: (d) => {
       void queryClient.setQueryData(["table", tableId], d);
+      void refresh();
       void queryClient.invalidateQueries({ queryKey: ["lobby"] });
       void queryClient.invalidateQueries({ queryKey: ["tables"] });
       void queryClient.invalidateQueries({

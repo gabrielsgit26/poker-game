@@ -10,6 +10,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { randomUUID } from 'node:crypto';
 import { AuthService } from '../auth/auth.service';
+import { UsersService } from '../auth/users.service';
 import { Club, ClubDocument } from './schemas/club.schema';
 import { ClubMember, ClubMemberDocument } from './schemas/club-member.schema';
 import {
@@ -100,6 +101,7 @@ export class ClubsService implements OnModuleInit {
     @InjectModel(CashOutRequest.name)
     private readonly cashOutRequestModel: Model<CashOutRequestDocument>,
     private readonly auth: AuthService,
+    private readonly users: UsersService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -844,6 +846,8 @@ export class ClubsService implements OnModuleInit {
       'MEMBER_CASHOUT',
       { note: ledgerNote },
     );
+
+    await this.users.incrementPlatformBalance(req.userId, amt);
 
     req.status = 'APPROVED';
     req.decidedByUserId = actorUserId;

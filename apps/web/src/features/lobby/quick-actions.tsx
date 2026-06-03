@@ -13,12 +13,12 @@ export function QuickActions() {
         Quick actions
       </h2>
       <div className="grid grid-cols-2 gap-3">
-        <Link href="/play" className={cardBase}>
+        <Link href="/tables" className={cardBase}>
           <span className="text-2xl" aria-hidden>
-            ⚡
+            🃏
           </span>
-          <span className="mt-2 font-semibold text-zinc-100">Quick join</span>
-          <span className="mt-1 text-xs text-zinc-500">Practice in the browser</span>
+          <span className="mt-2 font-semibold text-zinc-100">Browse tables</span>
+          <span className="mt-1 text-xs text-zinc-500">Join a club table from the list</span>
         </Link>
         <Link href="/clubs/new" className={cardBase}>
           <span className="text-2xl" aria-hidden>

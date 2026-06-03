@@ -60,7 +60,7 @@ export function TransactionList({ rows }: { rows: TxRow[] }) {
                     {formatWhen(tx.at)}
                   </td>
                   <td className="px-3 py-2.5 text-right font-mono text-xs tabular-nums text-zinc-400">
-                    {formatChips(tx.balanceAfter)}
+                    {tx.balanceAfter != null ? formatChips(tx.balanceAfter) : "—"}
                   </td>
                 </tr>
               ))}

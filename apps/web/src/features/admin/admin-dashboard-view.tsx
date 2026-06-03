@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AdminLedgerActivitySection } from "@/features/admin/admin-ledger-activity-section";
 import { AdminSignupActivitySection } from "@/features/admin/admin-signup-activity-section";
+import { AdminWalletConsole } from "@/features/admin/admin-wallet-console";
 import {
   DashboardEmptyState,
   DashboardFooterNav,
@@ -33,7 +34,7 @@ import { formatAbsoluteShort, formatRelativeTime } from "@/lib/format-dashboard-
 import { formatChips } from "@/lib/format-chips";
 import { useAuthSession } from "@/providers/auth-context";
 
-type AdminTab = "overview" | "users" | "clubs" | "tables" | "reports" | "credits";
+type AdminTab = "overview" | "users" | "clubs" | "tables" | "reports" | "wallet" | "credits";
 
 const DIRECTORY_PAGE_SIZE = 50;
 
@@ -173,6 +174,7 @@ export function AdminDashboardView() {
       void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       void queryClient.invalidateQueries({ queryKey: ["admin", "tables"] });
       void queryClient.invalidateQueries({ queryKey: ["admin", "report"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "wallet"] });
       void queryClient.invalidateQueries({ queryKey: ["club"] });
       void queryClient.invalidateQueries({ queryKey: ["lobby"] });
     },
@@ -281,8 +283,9 @@ export function AdminDashboardView() {
       title="Admin console"
       description={
         <>
-          Users, clubs, tables, activity reports, and platform credits — in one place. Some advanced
-          controls (suspensions, rake policy, audit logs) may be added in a future release.
+          Users, clubs, tables, activity reports, platform wallet queue, and club chip grants — in one
+          place. Some advanced controls (suspensions, rake policy, audit logs) may be added in a future
+          release.
         </>
       }
     >
@@ -329,6 +332,14 @@ export function AdminDashboardView() {
           onClick={() => setTab("reports")}
         >
           Reports
+        </DashboardTabButton>
+        <DashboardTabButton
+          id="admin-tab-wallet"
+          aria-controls="admin-panel-wallet"
+          active={tab === "wallet"}
+          onClick={() => setTab("wallet")}
+        >
+          Wallet
         </DashboardTabButton>
         <DashboardTabButton
           id="admin-tab-credits"
@@ -608,6 +619,10 @@ export function AdminDashboardView() {
           <AdminSignupActivitySection />
           <AdminLedgerActivitySection />
         </DashboardPanel>
+      ) : tab === "wallet" ? (
+        <div id="admin-panel-wallet" role="tabpanel" aria-labelledby="admin-tab-wallet" className="space-y-6">
+          <AdminWalletConsole />
+        </div>
       ) : (
         <DashboardPanel id="admin-panel-credits" role="tabpanel" aria-labelledby="admin-tab-credits">
           <section className="rounded-xl border border-amber-500/25 bg-gradient-to-b from-amber-950/[0.22] to-zinc-950/30 p-5 sm:p-6">

@@ -17,6 +17,13 @@ export class TableSeat {
   /** Chips taken from club wallet when first dealt in (defaults to table minBuyIn on server). */
   @Prop({ type: Number, min: 0 })
   buyInChips?: number;
+
+  /**
+   * When true, `buyInChips` was already debited from the member's club wallet at sit time.
+   * Holdem hand start must not debit again for this seat.
+   */
+  @Prop({ type: Boolean })
+  buyInDebitedAtSit?: boolean;
 }
 
 export const TableSeatSchema = SchemaFactory.createForClass(TableSeat);

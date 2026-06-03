@@ -23,10 +23,18 @@ export function ProfileHeader({ user }: { user: ProfileUser }) {
             {user.displayName}
           </h1>
           <p className="mt-1 text-xs text-zinc-500">{user.maskedTelegramRef}</p>
-          <p className="mt-3 text-lg font-semibold tabular-nums text-amber-100">
-            {formatChips(user.totalChips)}{" "}
-            <span className="text-sm font-normal text-zinc-500">chips total</span>
-          </p>
+          <div className="mt-3">
+            <p className="text-lg font-semibold tabular-nums text-amber-100">
+              {formatChips(user.totalChips)}{" "}
+              <span className="text-sm font-normal text-zinc-500">total</span>
+            </p>
+            {user.platformChips != null && user.clubChips != null ? (
+              <p className="mt-0.5 text-[11px] tabular-nums text-zinc-500">
+                Platform {formatChips(user.platformChips)} · Clubs{" "}
+                {formatChips(user.clubChips)}
+              </p>
+            ) : null}
+          </div>
         </div>
         <span
           className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${statusBadge(user.accountStatus)}`}

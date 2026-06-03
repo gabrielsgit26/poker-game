@@ -4,7 +4,11 @@ export interface ProfileUser {
   displayName: string;
   /** Shown instead of raw Telegram ID until auth exists. */
   maskedTelegramRef: string;
+  /** Total spendable chips (platform vault + clubs), same meaning as lobby `balanceChips`. */
   totalChips: number;
+  /** When known (e.g. from `/auth/me`), shown under total like the lobby header. */
+  platformChips?: number;
+  clubChips?: number;
   accountStatus: AccountStatus;
 }
 
@@ -15,6 +19,8 @@ export interface ClubBalanceRow {
 }
 
 export interface ProfileStats {
+  /** When false, hands / win rate / biggest pot are not stored yet (show placeholders). */
+  tracked: boolean;
   handsPlayed: number;
   winRatePct: number;
   biggestPotWon: number;
@@ -27,7 +33,8 @@ export interface TxRow {
   amount: number;
   clubName: string | null;
   at: string;
-  balanceAfter: number;
+  /** Club chip balance after entry; omitted or null for platform wallet rows. */
+  balanceAfter?: number | null;
 }
 
 export interface ProfileSnapshot {

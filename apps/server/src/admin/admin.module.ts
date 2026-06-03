@@ -10,6 +10,7 @@ import {
   ChipLedgerEntry,
   ChipLedgerEntrySchema,
 } from '../clubs/schemas/chip-ledger.schema';
+import { WalletModule } from '../wallet/wallet.module';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 
@@ -17,6 +18,7 @@ import { AdminService } from './admin.service';
   imports: [
     AuthModule,
     ClubsModule,
+    WalletModule,
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Club.name, schema: ClubSchema },

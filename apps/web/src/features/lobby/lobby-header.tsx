@@ -55,10 +55,20 @@ export function LobbyHeader({ user }: { user: LobbyUser }) {
             Hello,{" "}
             <span className="font-medium text-zinc-100">{user.displayName}</span>
           </p>
-          <p className="mt-1 text-lg font-semibold tabular-nums text-amber-100">
-            {formatChips(user.balanceChips)}{" "}
-            <span className="text-sm font-normal text-zinc-500">chips</span>
-          </p>
+          <Link href="/wallet" className="group block">
+            <p className="mt-1 text-lg font-semibold tabular-nums text-amber-100 transition group-hover:text-amber-50">
+              {formatChips(user.balanceChips)}{" "}
+              <span className="text-sm font-normal text-zinc-500 group-hover:text-zinc-400">total</span>
+            </p>
+            {user.platformChips != null && user.clubChips != null ? (
+              <p className="mt-0.5 text-[11px] tabular-nums text-zinc-500">
+                Platform {formatChips(user.platformChips)} · Clubs {formatChips(user.clubChips)}
+              </p>
+            ) : null}
+            <p className="mt-0.5 text-[10px] font-medium text-zinc-600 group-hover:text-zinc-500">
+              Wallet & club balances
+            </p>
+          </Link>
         </div>
         <div className="flex shrink-0 gap-1">
           <button

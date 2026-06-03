@@ -29,6 +29,7 @@ import {
 import { fetchTablesList, isApiRequestError } from "@/lib/lobby/api-tables";
 import { formatChips } from "@/lib/format-chips";
 import type { TableCardModel } from "@/lib/lobby/types";
+import { useAuthActions } from "@/providers/auth-context";
 
 type ManagerTab = "overview" | "requests" | "clubs" | "tables";
 
@@ -46,6 +47,7 @@ function isPendingJoinRow(r: { status: string }): boolean {
 
 export function ManagerDashboardView() {
   const queryClient = useQueryClient();
+  const { refresh } = useAuthActions();
   const [tab, setTab] = useState<ManagerTab>("overview");
   const [tablesSkip, setTablesSkip] = useState(0);
 
@@ -210,6 +212,7 @@ export function ManagerDashboardView() {
 
   const invalidateManagerData = () => {
     void queryClient.invalidateQueries({ queryKey: ["club"] });
+    void queryClient.invalidateQueries({ queryKey: ["lobby"] });
     void queryClient.invalidateQueries({ queryKey: ["lobby", "clubs-for-manager"] });
     void queryClient.invalidateQueries({ queryKey: ["manager", "chip-totals"] });
     void queryClient.invalidateQueries({ queryKey: ["manager", "tables"] });
@@ -236,6 +239,7 @@ export function ManagerDashboardView() {
     },
     onSuccess: (_data, vars) => {
       toast.success(vars.approve ? "Cash-out approved" : "Cash-out rejected");
+      void refresh();
       invalidateManagerData();
     },
     onError: (e: unknown) => {

@@ -51,6 +51,12 @@ export class AuthController {
     const o = user.toObject();
     const createdAt = user.get('createdAt') as Date | undefined;
     const updatedAt = user.get('updatedAt') as Date | undefined;
+    const platformBalanceChips = Math.max(
+      0,
+      Math.floor(Number((o as { platformBalanceChips?: number }).platformBalanceChips) || 0),
+    );
+    const clubChipsTotal = await this.users.sumActiveClubChips(o.userId);
+    const totalChips = platformBalanceChips + clubChipsTotal;
     return {
       authenticated: true as const,
       user: {
@@ -58,6 +64,9 @@ export class AuthController {
         displayName: o.displayName ?? null,
         createdAt: createdAt ? createdAt.toISOString() : null,
         updatedAt: updatedAt ? updatedAt.toISOString() : null,
+        platformBalanceChips,
+        clubChipsTotal,
+        totalChips,
       },
       isPlatformAdmin: this.auth.isPlatformAdminUserId(o.userId),
     };

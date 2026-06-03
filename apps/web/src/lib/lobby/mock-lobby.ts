@@ -6,6 +6,7 @@ import type {
   TableCardModel,
 } from "./types";
 import { apiBase } from "../dev-api";
+import { fetchAuthMe } from "../auth/api-auth";
 import { fetchClubsList } from "./api-clubs";
 import { fetchTablesList } from "./api-tables";
 
@@ -197,8 +198,37 @@ export async function fetchLobbySnapshot(
       }))
     : [...MOCK_CLUBS];
 
+  let user: LobbyUser = { ...MOCK_USER };
+  if (apiBase()) {
+    try {
+      const me = await fetchAuthMe();
+      if (me?.authenticated) {
+        const p = Math.max(0, Math.floor(Number(me.user.platformBalanceChips) || 0));
+        const clubRaw = me.user.clubChipsTotal;
+        const hasClubSplit = typeof clubRaw === "number" && Number.isFinite(clubRaw);
+        const c = hasClubSplit ? Math.max(0, Math.floor(clubRaw)) : 0;
+        let total: number;
+        if (me.user.totalChips != null && Number.isFinite(me.user.totalChips)) {
+          total = Math.max(0, Math.floor(Number(me.user.totalChips)));
+        } else if (hasClubSplit) {
+          total = p + c;
+        } else {
+          total = p;
+        }
+        user = {
+          ...MOCK_USER,
+          balanceChips: total,
+          displayName: me.user.displayName?.trim() || MOCK_USER.displayName,
+          ...(hasClubSplit ? { platformChips: p, clubChips: c } : {}),
+        };
+      }
+    } catch {
+      /* keep mock user */
+    }
+  }
+
   const base: LobbySnapshot = {
-    user: MOCK_USER,
+    user,
     clubs,
     tables,
   };

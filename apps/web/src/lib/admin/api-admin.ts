@@ -1,4 +1,5 @@
 import { apiBase, credFetch } from "../dev-api";
+import type { WalletRequestRow } from "../wallet/api-wallet";
 
 export interface AdminOverviewApi {
   userCount: number;
@@ -169,6 +170,92 @@ export async function fetchAdminTables(
     return (await res.json()) as AdminPagedApi<AdminTableRowApi>;
   } catch {
     return null;
+  }
+}
+
+export type AdminWalletRequestRow = WalletRequestRow;
+
+export interface AdminWalletDayApi {
+  day: string;
+  depositSum: number;
+  withdrawalSum: number;
+  approvedCount: number;
+}
+
+export interface AdminWalletReportApi {
+  days: AdminWalletDayApi[];
+  rangeStart: string;
+  rangeEnd: string;
+  pendingCount: number;
+}
+
+export async function fetchAdminWalletRequests(
+  skip = 0,
+  limit = 40,
+  status?: string,
+  q?: string,
+): Promise<AdminPagedApi<AdminWalletRequestRow> | null> {
+  const base = apiBase();
+  if (!base) return null;
+  try {
+    const params = new URLSearchParams({
+      skip: String(skip),
+      limit: String(limit),
+    });
+    const st = status?.trim();
+    if (st) params.set("status", st);
+    const qq = q?.trim();
+    if (qq) params.set("q", qq);
+    const res = await credFetch(`${base}/admin/wallet/requests?${params}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return (await res.json()) as AdminPagedApi<AdminWalletRequestRow>;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchAdminWalletReportDaily(days = 14): Promise<AdminWalletReportApi | null> {
+  const base = apiBase();
+  if (!base) return null;
+  const d = Math.min(90, Math.max(1, Math.floor(days)));
+  try {
+    const res = await credFetch(
+      `${base}/admin/wallet/report/daily?days=${encodeURIComponent(String(d))}`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as AdminWalletReportApi;
+  } catch {
+    return null;
+  }
+}
+
+export async function patchAdminWalletRequest(
+  requestId: string,
+  decision: "approve" | "reject" | "cancel",
+  note?: string,
+): Promise<void> {
+  const base = apiBase();
+  if (!base) throw new Error("API is not configured.");
+  const res = await credFetch(
+    `${base}/admin/wallet/requests/${encodeURIComponent(requestId)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ decision, note }),
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = `HTTP ${res.status}`;
+    try {
+      const j = JSON.parse(text) as { message?: string | string[] };
+      const m = j?.message;
+      msg = Array.isArray(m) ? m.join(". ") : typeof m === "string" ? m : msg;
+    } catch {
+      if (text) msg = text;
+    }
+    throw new Error(msg);
   }
 }
 

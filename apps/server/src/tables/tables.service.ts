@@ -1138,12 +1138,24 @@ export class TablesService implements OnModuleInit, OnModuleDestroy {
       seatIndex,
       userId,
       buyInChips: buyIn,
+      buyInDebitedAtSit: true,
     });
+    try {
+      await this.debitBuyInsForHand(t.clubId, tableId, [{ userId, amount: buyIn }]);
+    } catch (err) {
+      await this.seatModel.deleteOne({ tableId, userId });
+      throw err;
+    }
     try {
       await this.ensureActionTurn(tableId);
       await this.refreshTurnDeadline(tableId);
       await this.holdem.tryStartHand(tableId);
     } catch (err) {
+      await this.creditMemberChips(t.clubId, userId, buyIn, {
+        kind: 'BUYIN_ROLLBACK',
+        tableId,
+        note: 'Seat open failed after buy-in debit',
+      });
       await this.seatModel.deleteOne({ tableId, userId });
       await this.reconcileActionTurnAfterLeave(tableId, seatIndex);
       await this.refreshTurnDeadline(tableId);

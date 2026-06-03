@@ -152,7 +152,7 @@ export class HoldemCoordinator {
      * are not debited again. New seats use `buyInChips` from the seat document when present.
      */
     const rowCfgs = seats.map((row) => {
-      type SeatLean = (typeof row) & { buyInChips?: number };
+      type SeatLean = (typeof row) & { buyInChips?: number; buyInDebitedAtSit?: boolean };
       const r = row as SeatLean;
       const seatPreferred = (() => {
         const b = r.buyInChips;
@@ -174,6 +174,9 @@ export class HoldemCoordinator {
           stack = seatPreferred;
           debitAmount = seatPreferred;
         }
+      }
+      if (debitAmount > 0 && r.buyInDebitedAtSit === true) {
+        debitAmount = 0;
       }
       return {
         seatIndex: r.seatIndex,

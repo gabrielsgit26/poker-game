@@ -80,6 +80,17 @@ export function IconPractice(props: IconProps) {
   );
 }
 
+/** Wallet — platform balance / cashier */
+export function IconWallet(props: IconProps) {
+  return (
+    <BaseIcon {...props} title={props.title}>
+      <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+      <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+      <path d="M18 12a2 2 0 1 0 0 4h3v-4Z" />
+    </BaseIcon>
+  );
+}
+
 export function IconSettings(props: IconProps) {
   return (
     <BaseIcon {...props} title={props.title}>

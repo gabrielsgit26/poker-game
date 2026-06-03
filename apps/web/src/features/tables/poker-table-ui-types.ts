@@ -70,7 +70,7 @@ export interface PokerTableUiState {
   payouts: { seatIndex: number; userId: string; amount: number }[] | null;
 }
 
-export type PokerNavigateTarget = "lobby" | "tables" | "play" | "settings";
+export type PokerNavigateTarget = "lobby" | "tables" | "wallet" | "settings";
 
 export interface PokerTableBridge {
   onSit: (seatIndex: number) => void;

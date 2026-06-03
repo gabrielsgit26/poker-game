@@ -8,6 +8,12 @@ export type AuthMeResponse =
         displayName: string | null;
         createdAt: string | null;
         updatedAt: string | null;
+        /** Platform play-money wallet (admin-approved deposits / withdrawals). */
+        platformBalanceChips?: number;
+        /** Sum of club-room chip wallets (ACTIVE memberships). */
+        clubChipsTotal?: number;
+        /** platformBalanceChips + clubChipsTotal — total spendable chips across vault + clubs. */
+        totalChips?: number;
       };
       /** True when `userId` is listed in server `PLATFORM_ADMIN_USER_IDS`. */
       isPlatformAdmin: boolean;

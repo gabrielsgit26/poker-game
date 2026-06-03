@@ -20,11 +20,11 @@ import {
   IconLiveDot,
   IconLobby,
   IconPlayingCards,
-  IconPractice,
   IconSettings,
   IconTableBack,
   IconTableMenu,
   IconTablesGrid,
+  IconWallet,
 } from "@/features/tables/poker-table-header-icons";
 import type { PokerAllowedAction, PokerTableBridge } from "@/features/tables/poker-table-ui-types";
 import { PokerSeatHud } from "@/features/tables/poker-seat-hud";
@@ -888,13 +888,13 @@ export function PokerTableSvgView({
                 className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left text-sm text-zinc-100 transition hover:bg-white/[0.06]"
                 onClick={() => {
                   closeTableMenu();
-                  bridge.onNavigate("play");
+                  bridge.onNavigate("wallet");
                 }}
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-zinc-900/90 text-emerald-400/95">
-                  <IconPractice className="h-[18px] w-[18px]" />
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-zinc-900/90 text-violet-300/95">
+                  <IconWallet className="h-[18px] w-[18px]" />
                 </span>
-                <span className="min-w-0 font-medium leading-tight">Practice</span>
+                <span className="min-w-0 font-medium leading-tight">Wallet</span>
               </button>
               <button
                 type="button"

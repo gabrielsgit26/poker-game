@@ -43,13 +43,15 @@ function ChipStackIcon({ className }: { className?: string }) {
 
 function DealerCrownBadge() {
   return (
-    <div
-      className="flex h-[2.35rem] w-[1.65rem] shrink-0 flex-col items-center justify-center rounded-md border border-amber-500/40 bg-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]"
-      title="Dealer"
-    >
-      <span className="text-[13px] leading-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.75)]" role="img" aria-label="Dealer">
-        👑
-      </span>
+    <div className="absolute top-[-100%] left-1/2 z-20 -translate-x-1/2 translate-y-[58%]">
+      <div
+        className="flex h-[2.35rem] w-[1.65rem] shrink-0 flex-col items-center justify-center rounded-md border border-amber-500/40 bg-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]"
+        title="Dealer"
+      >
+        <span className="text-[13px] leading-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.75)]" role="img" aria-label="Dealer">
+          👑
+        </span>
+      </div>
     </div>
   );
 }
@@ -112,13 +114,12 @@ export function PokerSeatHud({
         {isHero ? "You" : label}
       </p>
 
-      {isHero ? (
+      {/* {isHero ? (
         <div className="relative mt-0.5 flex flex-col items-center pt-1">
           <div className={`flex items-start justify-center gap-1 ${dealerCrownSideClass}`}>
             <div
-              className={`relative z-10 rounded-full p-[2px] shadow-lg ${
-                isAct ? "ring-2 ring-emerald-400/90 ring-offset-2 ring-offset-transparent" : ""
-              } ring-2 ring-amber-400/95`}
+              className={`relative z-10 rounded-full p-[2px] shadow-lg ${isAct ? "ring-2 ring-emerald-400/90 ring-offset-2 ring-offset-transparent" : ""
+                } ring-2 ring-amber-400/95`}
             >
               {isAct ? (
                 <svg className="absolute inset-[-5px] h-[calc(100%+10px)] w-[calc(100%+10px)] -rotate-90" viewBox="0 0 36 36">
@@ -136,13 +137,12 @@ export function PokerSeatHud({
                 </svg>
               ) : null}
               <div
-                className={`flex h-[3.1rem] w-[3.1rem] items-center justify-center rounded-full text-[12px] font-bold ${
-                  seat.userId
-                    ? seat.folded
-                      ? "bg-zinc-800/85 text-zinc-500"
-                      : "bg-gradient-to-b from-zinc-600 to-zinc-900 text-zinc-50"
-                    : "bg-zinc-950 text-zinc-600"
-                }`}
+                className={`flex h-[3.1rem] w-[3.1rem] items-center justify-center rounded-full text-[12px] font-bold ${seat.userId
+                  ? seat.folded
+                    ? "bg-zinc-800/85 text-zinc-500"
+                    : "bg-gradient-to-b from-zinc-600 to-zinc-900 text-zinc-50"
+                  : "bg-zinc-950 text-zinc-600"
+                  }`}
               >
                 {seat.userId ? seat.userId.slice(0, 2).toUpperCase() : seatIndex + 1}
               </div>
@@ -155,16 +155,15 @@ export function PokerSeatHud({
             </div>
           ) : null}
         </div>
-      ) : (
+      ) : ( */}
         <div
-          className={`mt-1 flex items-start justify-center gap-2.5 pt-0.5 ${cardsTowardCenter ? "flex-row-reverse" : "flex-row"}`}
+          className={`relative mt-1 flex items-start justify-center pt-0.5 ${cardsTowardCenter ? "flex-row-reverse" : "flex-row"}`}
         >
           <div className="relative flex shrink-0 flex-col items-center">
             <div className={`flex items-start gap-1 ${dealerCrownSideClass}`}>
               <div
-                className={`relative z-10 rounded-full p-[2px] shadow-lg ${
-                  isAct ? "ring-2 ring-emerald-400/90 ring-offset-2 ring-offset-transparent" : ""
-                } ring-[1.5px] ring-amber-500/80`}
+                className={`relative z-10 rounded-full p-[2px] shadow-lg ${isAct ? "ring-2 ring-emerald-400/90 ring-offset-2 ring-offset-transparent" : ""
+                  } ring-[1.5px] ring-amber-500/80`}
               >
                 {isAct ? (
                   <svg className="absolute inset-[-5px] h-[calc(100%+10px)] w-[calc(100%+10px)] -rotate-90" viewBox="0 0 36 36">
@@ -182,13 +181,12 @@ export function PokerSeatHud({
                   </svg>
                 ) : null}
                 <div
-                  className={`flex h-[3.1rem] w-[3.1rem] items-center justify-center rounded-full text-[12px] font-bold ${
-                    seat.userId
-                      ? seat.folded
-                        ? "bg-zinc-800/85 text-zinc-500"
-                        : "bg-gradient-to-b from-zinc-600 to-zinc-900 text-zinc-50"
-                      : "bg-zinc-950 text-zinc-600"
-                  }`}
+                  className={`flex h-[3.1rem] w-[3.1rem] items-center justify-center rounded-full text-[12px] font-bold ${seat.userId
+                    ? seat.folded
+                      ? "bg-zinc-800/85 text-zinc-500"
+                      : "bg-gradient-to-b from-zinc-600 to-zinc-900 text-zinc-50"
+                    : "bg-zinc-950 text-zinc-600"
+                    }`}
                 >
                   {seat.userId ? seat.userId.slice(0, 2).toUpperCase() : seatIndex + 1}
                 </div>
@@ -203,27 +201,29 @@ export function PokerSeatHud({
           </div>
 
           {showBacks || holes ? (
-            <div
-              className="pointer-events-none flex shrink-0 items-start -space-x-2.5 pt-1"
-              aria-hidden
-            >
-              {holes ? (
-                <>
-                  <MiniCard code={holes[0]} size="sm" className="rotate-[7deg] shadow-lg ring-1 ring-black/20" />
-                  <MiniCard code={holes[1]} size="sm" className="-rotate-[5deg] translate-y-1 shadow-lg ring-1 ring-black/20" />
-                </>
-              ) : (
-                <>
-                  <OpponentCardBack className="rotate-[9deg] ring-1 ring-black/25" />
-                  <OpponentCardBack className="-rotate-[5deg] translate-y-1 ring-1 ring-black/25" />
-                </>
-              )}
+            <div className="absolute bottom-10 left-30 -translate-x-1/2 z-20">
+              <div
+                className="pointer-events-none flex shrink-0 items-start -space-x-2.5 pt-1"
+                aria-hidden
+              >
+                {holes ? (
+                  <>
+                    <MiniCard code={holes[0]} size={isHero ? "hero" : "sm"} className="rotate-[7deg] shadow-lg ring-1 ring-black/20" />
+                    <MiniCard code={holes[1]} size={isHero ? "hero" : "sm"} className="-rotate-[5deg] translate-y-1 shadow-lg ring-1 ring-black/20" />
+                  </>
+                ) : (
+                  <>
+                    <OpponentCardBack className="rotate-[9deg] ring-1 ring-black/25" />
+                    <OpponentCardBack className="-rotate-[5deg] translate-y-1 ring-1 ring-black/25" />
+                  </>
+                )}
+              </div>
             </div>
           ) : null}
         </div>
-      )}
+      {/* )} */}
 
-      {isHero ? (
+      {/* {isHero ? (
         <div
           className={`relative z-[5] mt-5 flex items-center justify-center gap-1 ${heroHolesDealing && holes ? "poker-hole-deal-wrap" : ""}`}
         >
@@ -239,7 +239,7 @@ export function PokerSeatHud({
             </>
           ) : null}
         </div>
-      ) : null}
+      ) : null} */}
 
       {seat.streetPut > 0 && seat.userId && !isHero ? (
         <div className="mt-3 text-[9px] font-semibold text-sky-200/95">Bet ${seat.streetPut}</div>

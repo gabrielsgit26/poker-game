@@ -11,6 +11,10 @@ export class User {
 
   @Prop({ maxlength: 120 })
   displayName?: string;
+
+  /** Play-money platform wallet (deposits / withdrawals approved by admin). */
+  @Prop({ default: 0 })
+  platformBalanceChips!: number;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

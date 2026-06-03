@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -12,6 +13,7 @@ import {
 import type { Request } from 'express';
 import { AuthService } from '../auth/auth.service';
 import { ClubsService } from '../clubs/clubs.service';
+import { WalletService } from '../wallet/wallet.service';
 import { AdminService } from './admin.service';
 
 @Controller('admin')
@@ -20,6 +22,7 @@ export class AdminController {
     private readonly auth: AuthService,
     private readonly clubs: ClubsService,
     private readonly admin: AdminService,
+    private readonly wallet: WalletService,
   ) {}
 
   private assertPlatformAdmin(req: Request): void {
@@ -100,6 +103,53 @@ export class AdminController {
       Number.isFinite(lim) ? lim : 50,
       Number.isFinite(sk) ? sk : 0,
     );
+  }
+
+  @Get('wallet/report/daily')
+  async walletReportDaily(@Req() req: Request, @Query('days') days?: string) {
+    this.assertPlatformAdmin(req);
+    const n = days != null ? Number.parseInt(days, 10) : 14;
+    return this.wallet.getDailyReport(Number.isFinite(n) ? n : 14);
+  }
+
+  @Get('wallet/requests')
+  async walletRequests(
+    @Req() req: Request,
+    @Query('limit') limit?: string,
+    @Query('skip') skip?: string,
+    @Query('status') status?: string,
+    @Query('q') q?: string,
+  ) {
+    this.assertPlatformAdmin(req);
+    const lim = limit != null ? Number.parseInt(limit, 10) : 50;
+    const sk = skip != null ? Number.parseInt(skip, 10) : 0;
+    const st =
+      status === 'PENDING' ||
+      status === 'APPROVED' ||
+      status === 'REJECTED' ||
+      status === 'CANCELLED'
+        ? status
+        : undefined;
+    return this.wallet.listAdmin(
+      Number.isFinite(lim) ? lim : 50,
+      Number.isFinite(sk) ? sk : 0,
+      st,
+      typeof q === 'string' ? q : undefined,
+    );
+  }
+
+  @Patch('wallet/requests/:requestId')
+  async walletDecide(
+    @Req() req: Request,
+    @Param('requestId') requestId: string,
+    @Body() body: { decision?: string; note?: string },
+  ) {
+    this.assertPlatformAdmin(req);
+    const d = body?.decision;
+    if (d !== 'approve' && d !== 'reject' && d !== 'cancel') {
+      throw new BadRequestException('Field "decision" must be approve, reject, or cancel.');
+    }
+    return this.wallet.adminDecide(req.pokerUserId, requestId, d, body?.note);
   }
 
   @Post('clubs/:clubId/members/:targetUserId/chip-grant')

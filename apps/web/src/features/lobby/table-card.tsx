@@ -5,24 +5,24 @@ import type { TableCardModel } from "@/lib/lobby/types";
 function statusStyles(s: TableCardModel["playStatus"]) {
   switch (s) {
     case "WAITING":
-      return "border-sky-500/35 bg-sky-950/40 text-sky-200";
+      return "bg-sky-500/15 text-sky-200 ring-1 ring-sky-500/30";
     case "PLAYING":
-      return "border-emerald-500/35 bg-emerald-950/40 text-emerald-200";
+      return "bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/30";
     case "FULL":
-      return "border-rose-500/35 bg-rose-950/40 text-rose-200";
+      return "bg-rose-500/15 text-rose-200 ring-1 ring-rose-500/30";
     default:
-      return "border-white/10 bg-zinc-800 text-zinc-300";
+      return "bg-zinc-700/40 text-zinc-300 ring-1 ring-white/10";
   }
 }
 
 function statusLabel(s: TableCardModel["playStatus"]) {
   switch (s) {
     case "WAITING":
-      return "Waiting";
+      return "Waiting for players";
     case "PLAYING":
-      return "Playing";
+      return "Hand in progress";
     case "FULL":
-      return "Full";
+      return "Table full";
     default:
       return s;
   }
@@ -30,59 +30,53 @@ function statusLabel(s: TableCardModel["playStatus"]) {
 
 export function TableCard({ table }: { table: TableCardModel }) {
   return (
-    <article className="rounded-2xl border border-white/10 bg-zinc-900/45 p-4 shadow-md">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
-            {table.clubName}
-          </p>
-          <h3 className="truncate text-base font-semibold text-zinc-50">
-            {table.name}
-          </h3>
+    <article className="group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-zinc-800/50 to-zinc-950/80 shadow-lg shadow-black/25 ring-1 ring-white/[0.04] transition hover:border-amber-500/20 hover:ring-amber-500/10">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(800px_circle_at_100%_0%,rgba(245,158,11,0.06),transparent_55%)]" />
+      <div className="relative flex flex-col p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">{table.clubName}</p>
+            <h3 className="mt-1 truncate text-lg font-semibold tracking-tight text-zinc-50 sm:text-xl">{table.name}</h3>
+          </div>
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${statusStyles(table.playStatus)}`}
+          >
+            {statusLabel(table.playStatus)}
+          </span>
         </div>
-        <span
-          className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusStyles(table.playStatus)}`}
-        >
-          {statusLabel(table.playStatus)}
-        </span>
-      </div>
-      <dl className="mt-3 grid grid-cols-2 gap-2 text-xs text-zinc-400">
-        <div>
-          <dt className="text-zinc-600">Stakes</dt>
-          <dd className="font-mono text-zinc-200">
-            {table.smallBlind} / {table.bigBlind}
-          </dd>
+
+        <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+          <div className="rounded-xl border border-white/[0.06] bg-zinc-950/40 px-3 py-2">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Stakes</p>
+            <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-zinc-100">
+              {table.smallBlind} / {table.bigBlind}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/[0.06] bg-zinc-950/40 px-3 py-2">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Seats</p>
+            <p className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-100">
+              {table.players} / {table.maxPlayers}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/[0.06] bg-zinc-950/40 px-3 py-2">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Timer</p>
+            <p className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-100">{table.timerSeconds}s</p>
+          </div>
+          <div className="rounded-xl border border-white/[0.06] bg-zinc-950/40 px-3 py-2">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Min buy-in</p>
+            <p className="mt-0.5 text-sm font-semibold tabular-nums text-amber-100/95">{formatChips(table.minBuyIn)}</p>
+          </div>
         </div>
-        <div>
-          <dt className="text-zinc-600">Players</dt>
-          <dd className="tabular-nums text-zinc-200">
-            {table.players} / {table.maxPlayers}
-          </dd>
+
+        <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
+          <p className="text-[11px] leading-snug text-zinc-500">Club table · live when you take a seat</p>
+          <Link
+            href={`/tables/${table.id}`}
+            className="shrink-0 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2.5 text-sm font-bold text-zinc-950 shadow-md shadow-amber-900/30 transition hover:from-amber-400 hover:to-amber-500 active:scale-[0.98]"
+          >
+            Open table
+          </Link>
         </div>
-        <div>
-          <dt className="text-zinc-600">Timer</dt>
-          <dd className="tabular-nums text-zinc-200">{table.timerSeconds}s</dd>
-        </div>
-        <div>
-          <dt className="text-zinc-600">Min buy-in</dt>
-          <dd className="tabular-nums text-zinc-200">
-            {formatChips(table.minBuyIn)}
-          </dd>
-        </div>
-      </dl>
-      <div className="mt-4 flex flex-wrap justify-end gap-2">
-        <Link
-          href="/play"
-          className="rounded-lg border border-white/15 bg-zinc-800/80 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:bg-zinc-700"
-        >
-          Practice
-        </Link>
-        <Link
-          href={`/tables/${table.id}`}
-          className="rounded-lg bg-emerald-600/90 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500"
-        >
-          Table
-        </Link>
       </div>
     </article>
   );

@@ -6,14 +6,12 @@ import { useAuthSession } from "@/providers/auth-context";
 
 function isPublicMainRoute(pathname: string | null): boolean {
   if (!pathname) return false;
-  if (pathname === "/login" || pathname === "/play") return true;
-  if (pathname.startsWith("/play/")) return true;
-  return false;
+  return pathname === "/login";
 }
 
 /**
  * When the API is configured, require a real Mongo user + `poker_sid` (dev-login or Telegram)
- * for all `(main)` routes except `/login` and `/play`.
+ * for all `(main)` routes except `/login`.
  */
 export function MainAuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -52,15 +50,15 @@ export function MainAuthGate({ children }: { children: React.ReactNode }) {
       <div className="mx-auto max-w-md px-6 py-16 text-center">
         <p className="text-sm font-medium text-zinc-200">Could not reach the server</p>
         <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-          Try again in a moment, or use{" "}
+          Try again in a moment, or return to{" "}
           <button
             type="button"
             className="text-amber-300 underline-offset-2 hover:underline"
-            onClick={() => router.push("/play")}
+            onClick={() => router.push("/login")}
           >
-            Practice
-          </button>{" "}
-          while offline.
+            sign-in
+          </button>
+          .
         </p>
       </div>
     );

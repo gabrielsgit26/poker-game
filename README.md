@@ -6,14 +6,14 @@ Monorepo aligned with `telegram_poker_platform_development_plan.md`.
 
 | Path | Purpose |
 |------|---------|
-| `apps/web` | Next.js — lobby, **`/play`** (offline HU runout lab), **`/tables/*`** (**SVG** oval felt + **HTML** seat HUD / actions; chip flights + deal animations in CSS), **`/clubs/*`**, Socket.IO, TanStack Query |
+| `apps/web` | Next.js — lobby, **`/wallet`** (platform balance, deposit/withdraw requests, history), **`/tables/*`** (**SVG** oval felt + **HTML** seat HUD / actions; chip flights + deal animations in CSS), **`/clubs/*`**, Socket.IO, TanStack Query |
 | `apps/server` | NestJS — **`GET /health`**, **`/auth/*`**, **`/clubs`**, **`/tables`**, **Socket.IO** (table rooms, `tableState` / `tableClosed`) |
 | `packages/shared` | Shared types and **`@telegram-poker/shared/poker-engine`** (NL hold’em: deck, streets, pot, showdown) |
 
 ## Developing without Telegram
 
 - Open the web app in a normal browser at `/` (redirects to `/lobby`).
-- Use **`/play`** for a local heads-up hand runout (deck + hand evaluation in the browser). No Mini App and no API session required.
+- Use **`/tables`** to browse club tables (requires API session when auth gate is on). The NL hold’em engine lives in **`packages/shared`** and powers the live **`HoldemCoordinator`** on the API.
 - Telegram login can be added later without changing that flow.
 
 See **[docs/DEVELOPMENT_STATUS.md](docs/DEVELOPMENT_STATUS.md)** for a phase-by-phase checklist vs `telegram_poker_platform_development_plan.md` §12.
@@ -27,7 +27,7 @@ See **[docs/DEVELOPMENT_STATUS.md](docs/DEVELOPMENT_STATUS.md)** for a phase-by-
 ## Prerequisites
 
 - Node.js 20+
-- **MongoDB** and **Redis** only when you run the Nest API (`npm run dev:server`); configure `apps/server/.env`. The **`/play`** route is client-only and does not use the API or databases.
+- **MongoDB** and **Redis** only when you run the Nest API (`npm run dev:server`); configure `apps/server/.env`. Platform wallet requests and balances are stored with your Mongo user documents and **`platform_wallet_requests`** collection.
 
 ## Setup
 

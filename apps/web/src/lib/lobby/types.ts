@@ -12,6 +12,10 @@ export interface LobbyUser {
   role: UserRole;
   /** Placeholder until avatars from Telegram / uploads exist. */
   avatarEmoji: string;
+  /** From API: platform wallet only (play-money vault). */
+  platformChips?: number;
+  /** From API: sum of ACTIVE club membership chip balances. */
+  clubChips?: number;
 }
 
 export interface ClubCardModel {

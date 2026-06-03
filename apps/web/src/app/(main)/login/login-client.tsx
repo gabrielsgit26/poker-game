@@ -74,10 +74,10 @@ export function LoginClient() {
         {skipGate ? (
           <p className="mt-6 rounded-xl border border-amber-500/25 bg-amber-950/25 p-4 text-sm text-amber-100/90">
             Session protection is off in this build. Configure your deployment for sign-in, or open{" "}
-            <Link href="/play" className="font-medium text-amber-300 underline-offset-2 hover:underline">
-              Practice
+            <Link href="/tables" className="font-medium text-amber-300 underline-offset-2 hover:underline">
+              Tables
             </Link>{" "}
-            for an offline runout.
+            to browse rooms once the API is available.
           </p>
         ) : null}
 
