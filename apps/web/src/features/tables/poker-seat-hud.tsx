@@ -5,6 +5,8 @@ import { MiniCard, OpponentCardBack } from "@/features/tables/poker-mini-card";
 
 export type PokerSeatHudProps = {
   seatIndex: number;
+  /** Table capacity — 7+ uses a wider rail + outward hole-card nudge to avoid overlapping the board. */
+  maxPlayers: number;
   norm: { x: number; y: number };
   seat: PokerSeatUi;
   isHero: boolean;
@@ -68,6 +70,7 @@ function BalancePill({ amount }: { amount: number }) {
 
 export function PokerSeatHud({
   seatIndex,
+  maxPlayers,
   norm,
   seat,
   isHero,
@@ -87,6 +90,8 @@ export function PokerSeatHud({
     !isHero &&
     !holes;
 
+  const hasHoleVisual = showBacks || Boolean(holes);
+
   const label = seat.userId
     ? seat.userId.length > 14
       ? `${seat.userId.slice(0, 13)}…`
@@ -101,18 +106,19 @@ export function PokerSeatHud({
   /** Top / bottom center: no horizontal "inside" offset; cards stay centered on the avatar. */
   const isPoleSeat = Math.abs(norm.x - 0.5) < 0.18;
   const isBottomPole = isPoleSeat && norm.y > 0.5;
+  const isTopPole = isPoleSeat && !isBottomPole;
   const isRightSide = !isPoleSeat && norm.x > 0.5;
 
   /** Dealer crown sits toward table center (left seats: crown right of avatar). */
   const dealerCrownSideClass = norm.x < 0.52 ? "flex-row" : "flex-row-reverse";
 
-  const holeFanPositionClass = isPoleSeat
-    ? isBottomPole
-      ? "bottom-full left-1/2 z-20 mb-1 -translate-x-1/2"
-      : "top-full left-1/2 z-20 mt-1 -translate-x-1/2"
-    : isRightSide
-      ? "right-full top-1/2 z-20 mr-1 -translate-y-1/2"
-      : "left-full top-1/2 z-20 ml-1 -translate-y-1/2";
+  const holeFanPositionClass =
+    isTopPole
+      ? "-left-8 z-20 mt-1 top-1/2 -translate-y-1/2 -translate-x-1/2"
+      : isBottomPole
+        ? "left-15 z-20 top-1/2 -translate-y-1/2"
+        : isRightSide ? "right-full top-1/2 z-20 mr-1 -translate-y-1/2"
+          : "left-full top-1/2 z-20 ml-1 -translate-y-1/2"
 
   const holeFan = showBacks || holes ? (
     <div className={`pointer-events-none absolute ${holeFanPositionClass}`} aria-hidden>
@@ -183,49 +189,51 @@ export function PokerSeatHud({
           ) : null}
         </div>
       ) : ( */}
-        <div className="mt-1 flex flex-col items-center justify-center pt-0.5">
-          <div className="relative inline-flex flex-col items-center">
-            <div className={`flex items-start gap-1 ${dealerCrownSideClass}`}>
+      <div className="mt-1 flex flex-col items-center justify-center pt-0.5">
+        <div className="relative inline-flex flex-col items-center">
+          <div className={`flex items-start gap-1 ${dealerCrownSideClass}`}>
+            <div
+              className={`relative z-10 rounded-full p-[2px] shadow-lg ${isAct ? "ring-2 ring-emerald-400/90 ring-offset-2 ring-offset-transparent" : ""
+                } ring-[1.5px] ring-amber-500/80`}
+            >
+              {isAct ? (
+                <svg className="absolute inset-[-5px] h-[calc(100%+10px)] w-[calc(100%+10px)] -rotate-90" viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(52,211,153,0.2)" strokeWidth="3" />
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="15"
+                    fill="none"
+                    stroke="#34d399"
+                    strokeWidth="3"
+                    strokeDasharray={`${turnFrac * 94.2} 94.2`}
+                    strokeLinecap="round"
+                  />
+                </svg>
+              ) : null}
               <div
-                className={`relative z-10 rounded-full p-[2px] shadow-lg ${isAct ? "ring-2 ring-emerald-400/90 ring-offset-2 ring-offset-transparent" : ""
-                  } ring-[1.5px] ring-amber-500/80`}
+                className={`flex h-[3.1rem] w-[3.1rem] items-center justify-center rounded-full text-[12px] font-bold ${seat.userId
+                  ? seat.folded
+                    ? "bg-zinc-800/85 text-zinc-500"
+                    : "bg-gradient-to-b from-zinc-600 to-zinc-900 text-zinc-50"
+                  : "bg-zinc-950 text-zinc-600"
+                  }`}
               >
-                {isAct ? (
-                  <svg className="absolute inset-[-5px] h-[calc(100%+10px)] w-[calc(100%+10px)] -rotate-90" viewBox="0 0 36 36">
-                    <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(52,211,153,0.2)" strokeWidth="3" />
-                    <circle
-                      cx="18"
-                      cy="18"
-                      r="15"
-                      fill="none"
-                      stroke="#34d399"
-                      strokeWidth="3"
-                      strokeDasharray={`${turnFrac * 94.2} 94.2`}
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                ) : null}
-                <div
-                  className={`flex h-[3.1rem] w-[3.1rem] items-center justify-center rounded-full text-[12px] font-bold ${seat.userId
-                    ? seat.folded
-                      ? "bg-zinc-800/85 text-zinc-500"
-                      : "bg-gradient-to-b from-zinc-600 to-zinc-900 text-zinc-50"
-                    : "bg-zinc-950 text-zinc-600"
-                    }`}
-                >
-                  {seat.userId ? seat.userId.slice(0, 2).toUpperCase() : seatIndex + 1}
-                </div>
+                {seat.userId ? seat.userId.slice(0, 2).toUpperCase() : seatIndex + 1}
               </div>
-              {seat.isButton ? <DealerCrownBadge /> : null}
             </div>
-            {holeFan}
+            {seat.isButton ? <DealerCrownBadge /> : null}
           </div>
-          {seat.userId && chipTotal != null ? (
-            <div className="mt-2">
-              <BalancePill amount={chipTotal} />
-            </div>
-          ) : null}
+          {holeFan}
         </div>
+        {seat.userId && chipTotal != null ? (
+          <div
+            className="relative z-[30] mt-2"
+          >
+            <BalancePill amount={chipTotal} />
+          </div>
+        ) : null}
+      </div>
       {/* )} */}
 
       {/* {isHero ? (

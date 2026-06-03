@@ -51,14 +51,14 @@ export function formatCard(code: string): string {
   return `${rank}${suit}`;
 }
 
-/** Tucked card backs for opponents — larger so they read at a glance on the felt. */
+/** Tucked card backs for opponents — sized to pair with `MiniCard` `sm` on the felt. */
 export function OpponentCardBack({ className }: { className?: string }) {
   return (
     <div
-      className={`flex h-[3.35rem] w-[2.35rem] shrink-0 items-center justify-center rounded-md border-[1.5px] border-amber-400/95 bg-gradient-to-b from-[#141a22] via-[#0c1018] to-black shadow-[0_3px_12px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.06)] ${className ?? ""}`}
+      className={`flex h-[2.6rem] w-[1.82rem] shrink-0 items-center justify-center rounded-[0.2rem] border-[1.5px] border-amber-400/95 bg-gradient-to-b from-[#141a22] via-[#0c1018] to-black shadow-[0_2px_8px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.06)] ${className ?? ""}`}
       aria-hidden
     >
-      <span className="select-none text-[1.15rem] leading-none text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.45)]">
+      <span className="select-none text-[0.95rem] leading-none text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.4)]">
         ♔
       </span>
     </div>
@@ -80,10 +80,10 @@ export function MiniCard({
   const dim =
     size === "hero"
       ? "h-14 w-10 min-h-14 min-w-10 rounded-md border-2 shadow-md"
-      : "h-[3.1rem] w-[2.15rem] shrink-0 rounded-md border border-slate-400/90 shadow-md";
+      : "h-[2.5rem] w-[1.72rem] min-h-[2.5rem] min-w-[1.72rem] shrink-0 rounded-[0.2rem] border border-slate-400/90 shadow-sm";
   const base = `poker-hole-deal-item flex items-center justify-center ${dim}`;
-  const faceDownText = size === "hero" ? "text-sm" : "text-[10px]";
-  const faceUpText = size === "hero" ? "text-sm font-bold" : "text-[10px] font-bold leading-tight";
+  const faceDownText = size === "hero" ? "text-sm" : "text-[9px]";
+  const faceUpText = size === "hero" ? "text-sm font-bold" : "text-[9px] font-bold leading-tight";
   if (faceDown) {
     return (
       <div

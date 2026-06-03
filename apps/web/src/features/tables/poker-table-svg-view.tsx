@@ -28,6 +28,7 @@ import {
 } from "@/features/tables/poker-table-header-icons";
 import type { PokerAllowedAction, PokerTableBridge } from "@/features/tables/poker-table-ui-types";
 import { PokerSeatHud } from "@/features/tables/poker-seat-hud";
+import { seatNormForTable as seatNorm } from "@/features/tables/table-seat-layouts";
 import type { TableDetailApi } from "@/lib/lobby/api-tables";
 import { getTableUiCopy } from "@/lib/i18n/table-copy";
 import { resolveFeltPreset } from "@/lib/settings/table-felt-presets";
@@ -51,31 +52,6 @@ const POT_NORM = { x: 0.5, y: 0.43 } as const;
 const CHIP_FLIGHT_MS = 520;
 /** Extra time after the last chip lands before the outcome ticker appears (read pot / breathe). */
 const PAYOUT_RESULT_AFTER_CHIPS_MS = 380;
-
-/**
- * Portrait 6-max: seats hug the felt rail (reference apps keep avatars tight to the oval).
- */
-const LAYOUT_6: { x: number; y: number }[] = [
-  { x: 0.5, y: 0.94 },
-  { x: 0.075, y: 0.695 },
-  { x: 0.075, y: 0.305 },
-  { x: 0.5, y: 0.07 },
-  { x: 0.925, y: 0.305 },
-  { x: 0.925, y: 0.695 },
-];
-
-function seatNorm(i: number, n: number): { x: number; y: number } {
-  if (n === 6 && i < 6) return LAYOUT_6[i]!;
-  const cx = 0.5;
-  const cy = 0.5;
-  const rx = 0.37;
-  const ry = 0.41;
-  const ang = -Math.PI / 2 + (i * (2 * Math.PI)) / Math.max(n, 1);
-  return {
-    x: cx + Math.cos(ang) * rx * 0.98,
-    y: cy + Math.sin(ang) * ry * 0.98,
-  };
-}
 
 /** Visual chip count in the center pile (log-scaled vs pot; capped for perf). */
 function potChipDiscCount(pot: number, bigBlind: number): number {
@@ -794,6 +770,7 @@ export function PokerTableSvgView({
                 <PokerSeatHud
                   key={idx}
                   seatIndex={idx}
+                  maxPlayers={ui.maxPlayers}
                   norm={p}
                   seat={seat}
                   isHero={isHero}
@@ -940,7 +917,7 @@ export function PokerTableSvgView({
               </button>
             </div>
           </details>
-          <span
+          {/* <span
             className={`inline-flex items-center gap-1.5 min-h-[stretch] rounded-full border px-2 py-1.5 text-[9px] font-bold tracking-wide ${ui.liveReady
               ? "border-emerald-500/30 bg-emerald-950/85 text-emerald-100"
               : ui.live
@@ -950,7 +927,7 @@ export function PokerTableSvgView({
           >
             <IconLiveDot live={ui.liveReady} connecting={ui.live && !ui.liveReady} />
             {ui.liveReady ? "Live" : ui.live ? "…" : "Off"}
-          </span>
+          </span> */}
           <div className="min-w-0 flex-1 px-1 text-center text-[10px] leading-tight text-zinc-200">
             <div className="flex items-center justify-center gap-1.5 truncate">
               <IconPlayingCards className="h-3.5 w-3.5 shrink-0 text-amber-400/90" aria-hidden />
