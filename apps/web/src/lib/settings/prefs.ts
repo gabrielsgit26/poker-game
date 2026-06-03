@@ -16,7 +16,7 @@ export const TABLE_THEMES = [
 ] as const;
 
 export const CARD_STYLES = [
-  { id: "standard", label: "Standard" },
+  { id: "standard", label: "Standard (red / black)" },
   { id: "four-color", label: "Four-color deck" },
 ] as const;
 

@@ -3,7 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n/i18n-context";
+import { notifyError, notifySuccess } from "@/lib/notifications/notify";
 import {
   type ChipLedgerApiRow,
   fetchCashOutRequests,
@@ -67,6 +68,7 @@ function chipKindLabel(kind: string): string {
 }
 
 export function ClubDetailView({ clubId }: { clubId: string }) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const { refresh } = useAuthActions();
 
@@ -158,8 +160,10 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
       return r;
     },
     onSuccess: (r) => {
-      toast.success("Balance updated", {
-        description: `${r.targetUserId} now has ${formatChips(r.newBalance)} club chips.`,
+      notifySuccess(t("toast.balanceUpdated"), {
+        description: t("toast.balanceAdjustDesc")
+          .replace("{{user}}", r.targetUserId)
+          .replace("{{balance}}", formatChips(r.newBalance)),
       });
       setAdjustDelta("");
       setAdjustNote("");
@@ -167,7 +171,7 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
       void queryClient.invalidateQueries({ queryKey: ["club", clubId, "chip-ledger"] });
     },
     onError: (e: unknown) => {
-      toast.error(e instanceof Error ? e.message : "Adjustment failed.");
+      notifyError(e instanceof Error ? e.message : t("toast.adjustFail"));
     },
   });
 
@@ -178,8 +182,8 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
       return r;
     },
     onSuccess: () => {
-      toast.success("Cash-out request submitted", {
-        description: "A manager will review it when they open this club.",
+      notifySuccess(t("toast.cashOutSubmitted"), {
+        description: t("toast.cashOutSubmittedDescManager"),
       });
       setCashOutAmount("");
       setCashOutNote("");
@@ -187,7 +191,7 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
       void queryClient.invalidateQueries({ queryKey: ["club", clubId, "cash-out-requests"] });
     },
     onError: (e: unknown) => {
-      toast.error(e instanceof Error ? e.message : "Request failed.");
+      notifyError(e instanceof Error ? e.message : t("toast.cashOutFail"));
     },
   });
 
@@ -197,7 +201,7 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
       if (!ok) throw new Error("Unable to update that request.");
     },
     onSuccess: () => {
-      toast.success("Cash-out request updated.");
+      notifySuccess(t("toast.cashOutUpdated"));
       void refresh();
       void queryClient.invalidateQueries({ queryKey: ["lobby"] });
       void queryClient.invalidateQueries({ queryKey: ["club", clubId] });
@@ -205,7 +209,7 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
       void queryClient.invalidateQueries({ queryKey: ["club", clubId, "cash-out-requests"] });
     },
     onError: (e: unknown) => {
-      toast.error(e instanceof Error ? e.message : "Action failed.");
+      notifyError(e instanceof Error ? e.message : t("toast.cashOutActionFail"));
     },
   });
 
@@ -417,7 +421,7 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
             onClick={() => {
               const n = parseInt(cashOutAmount, 10);
               if (n < 1) {
-                toast.error("Enter a positive amount.");
+                notifyError(t("toast.enterPositive"));
                 return;
               }
               cashOutMut.mutate({
@@ -591,7 +595,7 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
               onClick={() => {
                 const n = parseInt(adjustDelta, 10);
                 if (n === 0) {
-                  toast.error("Delta must be non-zero.");
+                  notifyError(t("toast.deltaNonZero"));
                   return;
                 }
                 adjustMut.mutate({

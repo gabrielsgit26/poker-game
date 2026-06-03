@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { apiBase } from "@/lib/dev-api";
-import { useAuthActions, useAuthUserId } from "@/providers/auth-context";
+import { useI18n } from "@/lib/i18n/i18n-context";
+import { resolveFeltPreset } from "@/lib/settings/table-felt-presets";
 import {
   CARD_STYLES,
   TABLE_THEMES,
@@ -11,6 +12,15 @@ import {
   readPref,
   writePref,
 } from "@/lib/settings/prefs";
+import {
+  playBoardStreet,
+  playChipsToPot,
+  playPotToWinners,
+  playYourTurn,
+  prefetchTableSounds,
+  resumeTableAudio,
+} from "@/lib/table/table-sounds";
+import { useAuthActions, useAuthUserId } from "@/providers/auth-context";
 
 function ToggleRow({
   id,
@@ -27,12 +37,12 @@ function ToggleRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-zinc-900/40 px-4 py-3">
-      <div>
+      <div className="min-w-0">
         <label htmlFor={id} className="font-medium text-zinc-100">
           {label}
         </label>
         {description ? (
-          <p className="mt-0.5 text-xs text-zinc-500">{description}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">{description}</p>
         ) : null}
       </div>
       <button
@@ -55,7 +65,62 @@ function ToggleRow({
   );
 }
 
+function ThemeSwatch({ themeId, selected, onSelect }: { themeId: string; selected: boolean; onSelect: () => void }) {
+  const felt = resolveFeltPreset(themeId);
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`group relative flex flex-col overflow-hidden rounded-xl border text-left transition ${
+        selected
+          ? "border-amber-400/70 ring-2 ring-amber-400/35"
+          : "border-white/10 hover:border-white/20"
+      }`}
+    >
+      <div
+        className="h-14 w-full"
+        style={{
+          background: `linear-gradient(135deg, ${felt.feltStops[0]}, ${felt.feltStops[2]})`,
+        }}
+      />
+      <div className="border-t border-white/10 bg-zinc-950/90 px-2 py-1.5 text-[10px] font-medium text-zinc-300">
+        {TABLE_THEMES.find((t) => t.id === themeId)?.label}
+      </div>
+    </button>
+  );
+}
+
+function CardPreview({ styleId }: { styleId: string }) {
+  const codes = ["As", "Kh", "Td", "2c"] as const;
+  return (
+    <div className="flex justify-center gap-1.5 rounded-lg border border-white/10 bg-zinc-950/60 py-3">
+      {codes.map((c) => (
+        <div
+          key={c}
+          className={`flex h-11 w-8 items-center justify-center rounded border border-slate-400/90 bg-white text-[10px] font-bold leading-tight shadow ${
+            styleId === "four-color"
+              ? c.endsWith("h")
+                ? "text-rose-600"
+                : c.endsWith("d")
+                  ? "text-sky-600"
+                  : c.endsWith("c")
+                    ? "text-emerald-700"
+                    : "text-slate-900"
+              : c.endsWith("h") || c.endsWith("d")
+                ? "text-rose-600"
+                : "text-slate-900"
+          }`}
+        >
+          {c[0] === "T" ? "10" : c[0]}
+          {c[1] === "h" ? "♥" : c[1] === "d" ? "♦" : c[1] === "c" ? "♣" : "♠"}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function SettingsForm() {
+  const { t } = useI18n();
   const router = useRouter();
   const liveApi = Boolean(apiBase());
   const authUserId = useAuthUserId();
@@ -80,7 +145,7 @@ export function SettingsForm() {
     setNotifications(readPref("notifications", "1") === "1");
     setTableTheme(readPref("tableTheme", "classic-green"));
     setCardStyle(readPref("cardStyle", "standard"));
-    setLanguage(readPref("language", "en"));
+    setLanguage(readPref("language", "en") === "ja" ? "ja" : "en");
     setReady(true);
   }, []);
 
@@ -96,6 +161,12 @@ export function SettingsForm() {
     }
   };
 
+  const previewSound = (fn: () => void) => {
+    resumeTableAudio();
+    prefetchTableSounds();
+    fn();
+  };
+
   if (!ready) {
     return (
       <div className="mx-auto max-w-lg animate-pulse space-y-4 px-4 py-6">
@@ -107,28 +178,68 @@ export function SettingsForm() {
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-6 px-4 py-2 pb-6">
+    <div className="mx-auto max-w-lg space-y-8 px-4 py-2 pb-8">
+      <header className="space-y-1 border-b border-white/10 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">{t("settings.pageTitle")}</h1>
+        <p className="text-sm leading-relaxed text-zinc-500">{t("settings.pageSubtitle")}</p>
+      </header>
+
       <section className="space-y-3" aria-labelledby="media-pref">
         <h2
           id="media-pref"
           className="text-xs font-medium uppercase tracking-widest text-zinc-500"
         >
-          Sound & haptics
+          {t("settings.section.sound")}
         </h2>
         <ToggleRow
           id="sound"
-          label="Sound effects"
-          description="Table sounds: streets, chips moving, pot result, and when it is your turn."
+          label={t("settings.sound.label")}
+          description={t("settings.sound.hint")}
           checked={sound}
           onChange={(v) => {
             setSound(v);
             writePref("sound", v ? "1" : "0");
           }}
         />
+        {sound ? (
+          <div className="flex flex-wrap gap-2 rounded-xl border border-white/10 bg-zinc-900/30 px-3 py-3">
+            <span className="w-full text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+              Preview
+            </span>
+            <button
+              type="button"
+              className="rounded-lg border border-white/15 bg-zinc-950 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:border-amber-500/40 hover:text-amber-100"
+              onClick={() => previewSound(playBoardStreet)}
+            >
+              {t("settings.sound.testStreet")}
+            </button>
+            <button
+              type="button"
+              className="rounded-lg border border-white/15 bg-zinc-950 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:border-amber-500/40 hover:text-amber-100"
+              onClick={() => previewSound(playChipsToPot)}
+            >
+              {t("settings.sound.testChips")}
+            </button>
+            <button
+              type="button"
+              className="rounded-lg border border-white/15 bg-zinc-950 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:border-amber-500/40 hover:text-amber-100"
+              onClick={() => previewSound(playYourTurn)}
+            >
+              {t("settings.sound.testTurn")}
+            </button>
+            <button
+              type="button"
+              className="rounded-lg border border-white/15 bg-zinc-950 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:border-amber-500/40 hover:text-amber-100"
+              onClick={() => previewSound(playPotToWinners)}
+            >
+              {t("settings.sound.testWin")}
+            </button>
+          </div>
+        ) : null}
         <ToggleRow
           id="vibration"
-          label="Vibration"
-          description="Short pulse on your turn (supported devices)."
+          label={t("settings.vibration.label")}
+          description={t("settings.vibration.hint")}
           checked={vibration}
           onChange={(v) => {
             setVibration(v);
@@ -143,28 +254,21 @@ export function SettingsForm() {
           id="theme-pref"
           className="text-xs font-medium uppercase tracking-widest text-zinc-500"
         >
-          Table theme
+          {t("settings.section.theme")}
         </h2>
-        <div className="rounded-xl border border-white/10 bg-zinc-900/40 p-4">
-          <label htmlFor="table-theme" className="sr-only">
-            Table theme
-          </label>
-          <select
-            id="table-theme"
-            value={tableTheme}
-            onChange={(e) => {
-              const v = e.target.value;
-              setTableTheme(v);
-              writePref("tableTheme", v);
-            }}
-            className="w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100"
-          >
-            {TABLE_THEMES.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+        <p className="text-xs leading-relaxed text-zinc-500">{t("settings.theme.hint")}</p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {TABLE_THEMES.map((th) => (
+            <ThemeSwatch
+              key={th.id}
+              themeId={th.id}
+              selected={tableTheme === th.id}
+              onSelect={() => {
+                setTableTheme(th.id);
+                writePref("tableTheme", th.id);
+              }}
+            />
+          ))}
         </div>
       </section>
 
@@ -173,25 +277,33 @@ export function SettingsForm() {
           id="card-pref"
           className="text-xs font-medium uppercase tracking-widest text-zinc-500"
         >
-          Card style
+          {t("settings.section.cards")}
         </h2>
-        <div className="rounded-xl border border-white/10 bg-zinc-900/40 p-4">
-          <select
-            id="card-style"
-            value={cardStyle}
-            onChange={(e) => {
-              const v = e.target.value;
-              setCardStyle(v);
-              writePref("cardStyle", v);
-            }}
-            className="w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100"
-          >
-            {CARD_STYLES.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+        <p className="text-xs leading-relaxed text-zinc-500">{t("settings.cards.hint")}</p>
+        <CardPreview styleId={cardStyle} />
+        <div className="rounded-xl border border-white/10 bg-zinc-900/40 p-1">
+          <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+            {CARD_STYLES.map((c) => {
+              const active = cardStyle === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => {
+                    setCardStyle(c.id);
+                    writePref("cardStyle", c.id);
+                  }}
+                  className={`rounded-lg px-3 py-3 text-left text-sm font-medium transition ${
+                    active
+                      ? "bg-amber-500/15 text-amber-100 ring-1 ring-amber-500/40"
+                      : "text-zinc-300 hover:bg-white/[0.04]"
+                  }`}
+                >
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </section>
 
@@ -200,22 +312,40 @@ export function SettingsForm() {
           id="lang-pref"
           className="text-xs font-medium uppercase tracking-widest text-zinc-500"
         >
-          Language
+          {t("settings.section.lang")}
         </h2>
-        <div className="rounded-xl border border-white/10 bg-zinc-900/40 p-4">
-          <select
-            id="language"
-            value={language}
-            onChange={(e) => {
-              const v = e.target.value;
-              setLanguage(v);
-              writePref("language", v);
-            }}
-            className="w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100"
-          >
-            <option value="en">English</option>
-            <option value="ja">日本語 (soon)</option>
-          </select>
+        <p className="text-xs leading-relaxed text-zinc-500">{t("settings.lang.hint")}</p>
+        <div className="rounded-xl border border-white/10 bg-zinc-900/40 p-1">
+          <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => {
+                setLanguage("en");
+                writePref("language", "en");
+              }}
+              className={`rounded-lg px-3 py-3 text-left text-sm font-medium transition ${
+                language === "en"
+                  ? "bg-emerald-500/15 text-emerald-100 ring-1 ring-emerald-500/35"
+                  : "text-zinc-300 hover:bg-white/[0.04]"
+              }`}
+            >
+              English
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLanguage("ja");
+                writePref("language", "ja");
+              }}
+              className={`rounded-lg px-3 py-3 text-left text-sm font-medium transition ${
+                language === "ja"
+                  ? "bg-emerald-500/15 text-emerald-100 ring-1 ring-emerald-500/35"
+                  : "text-zinc-300 hover:bg-white/[0.04]"
+              }`}
+            >
+              日本語
+            </button>
+          </div>
         </div>
       </section>
 
@@ -224,12 +354,12 @@ export function SettingsForm() {
           id="notif-pref"
           className="text-xs font-medium uppercase tracking-widest text-zinc-500"
         >
-          Notifications
+          {t("settings.section.notify")}
         </h2>
         <ToggleRow
           id="notifications"
-          label="Push-style alerts in app"
-          description="Uses in-app toasts when the notification layer exists."
+          label={t("settings.notify.label")}
+          description={t("settings.notify.hint")}
           checked={notifications}
           onChange={(v) => {
             setNotifications(v);
@@ -244,22 +374,22 @@ export function SettingsForm() {
             id="dev-session"
             className="text-xs font-medium uppercase tracking-widest text-zinc-500"
           >
-            Developer sign-in
+            {t("settings.section.dev")}
           </h2>
           <div className="rounded-xl border border-white/10 bg-zinc-900/40 p-4 text-sm text-zinc-200">
             <p className="text-xs text-zinc-500">
-              Current user:{" "}
+              {t("settings.dev.currentUser")}:{" "}
               <span className="font-mono text-zinc-300">{authUserId}</span>
             </p>
             <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
-              For local testing, use the buttons below. Use the{" "}
+              {t("settings.dev.bodyBefore")}{" "}
               <a href="/login" className="text-amber-300 underline-offset-2 hover:underline">
-                sign-in page
-              </a>{" "}
-              when opening the app from Telegram.
+                {t("settings.link.login")}
+              </a>
+              {t("settings.dev.bodyAfter")}
             </p>
             <label className="mt-3 block text-xs text-zinc-500" htmlFor="dev-uid">
-              User id (letters, digits, <code className="text-zinc-400">._-</code> only)
+              {t("settings.dev.userIdLabel")}
             </label>
             <input
               id="dev-uid"
@@ -276,14 +406,14 @@ export function SettingsForm() {
                   setSessBusy(true);
                   try {
                     const ok = await devLogin(devUid.trim() || undefined);
-                    if (!ok) window.alert("Sign-in failed. Check your connection and try again.");
+                    if (!ok) window.alert(t("settings.dev.signInFail"));
                   } finally {
                     setSessBusy(false);
                   }
                 }}
                 className="rounded-lg bg-emerald-600/85 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
               >
-                {sessBusy ? "…" : "Sign in locally"}
+                {sessBusy ? "…" : t("settings.dev.signIn")}
               </button>
               <button
                 type="button"
@@ -298,7 +428,7 @@ export function SettingsForm() {
                 }}
                 className="rounded-lg border border-white/15 px-4 py-2 text-xs font-semibold text-zinc-300"
               >
-                Clear server session
+                {t("settings.dev.clear")}
               </button>
             </div>
           </div>
@@ -310,13 +440,9 @@ export function SettingsForm() {
         aria-labelledby="rg-heading"
       >
         <h2 id="rg-heading" className="font-semibold text-amber-200">
-          Responsible gaming
+          {t("settings.rg.title")}
         </h2>
-        <p className="mt-2 text-xs leading-relaxed text-amber-100/80">
-          Play within your means. This demo does not use real money. If you
-          integrate real stakes later, add limits, self-exclusion, and support
-          links here.
-        </p>
+        <p className="mt-2 text-xs leading-relaxed text-amber-100/80">{t("settings.rg.body")}</p>
       </section>
 
       <div className="space-y-3 pt-2">
@@ -325,12 +451,9 @@ export function SettingsForm() {
           onClick={clearLocalPrefs}
           className="w-full rounded-xl border border-rose-500/40 bg-rose-950/30 py-3 text-sm font-semibold text-rose-200 transition hover:bg-rose-950/50"
         >
-          Clear local preferences
+          {t("settings.clearPrefs")}
         </button>
-        <p className="text-center text-[11px] text-zinc-600">
-          Clears saved preferences in this browser and returns to the lobby. To sign out from the
-          server, use “Clear server session” above.
-        </p>
+        <p className="text-center text-[11px] leading-relaxed text-zinc-600">{t("settings.clearPrefsHint")}</p>
       </div>
     </div>
   );

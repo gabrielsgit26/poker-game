@@ -2,7 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n/i18n-context";
+import { notifyError, notifySuccess } from "@/lib/notifications/notify";
 import {
   DashboardListSkeleton,
   DashboardPanel,
@@ -29,6 +30,7 @@ function statusBadge(s: WalletRequestRow["status"]): string {
 }
 
 export function AdminWalletConsole() {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const { refresh } = useAuthActions();
   const [skip, setSkip] = useState(0);
@@ -69,9 +71,13 @@ export function AdminWalletConsole() {
       await patchAdminWalletRequest(p.id, p.decision);
     },
     onSuccess: async (_, vars) => {
-      toast.success(
-        vars.decision === "approve" ? "Approved" : vars.decision === "reject" ? "Rejected" : "Cancelled",
-      );
+      const msg =
+        vars.decision === "approve"
+          ? t("toast.walletApproved")
+          : vars.decision === "reject"
+            ? t("toast.walletRejected")
+            : t("toast.walletCancelled");
+      notifySuccess(msg);
       await refresh();
       void queryClient.invalidateQueries({ queryKey: ["admin", "wallet"] });
       void queryClient.invalidateQueries({ queryKey: ["admin", "overview"] });
@@ -79,7 +85,7 @@ export function AdminWalletConsole() {
       void queryClient.invalidateQueries({ queryKey: ["wallet"] });
     },
     onError: (e: unknown) => {
-      toast.error(e instanceof Error ? e.message : "Action failed.");
+      notifyError(e instanceof Error ? e.message : t("toast.walletActionFail"));
     },
   });
 

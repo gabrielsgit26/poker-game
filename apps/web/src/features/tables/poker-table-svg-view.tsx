@@ -11,7 +11,7 @@ import {
   useState,
 } from "react";
 import { buildPokerTableUiState } from "@/features/tables/build-poker-table-ui-state";
-import { formatCard, isRedSuit } from "@/features/tables/poker-mini-card";
+import { formatCard, suitSvgFill } from "@/features/tables/poker-mini-card";
 import { PokerRaisePanel } from "@/features/tables/poker-raise-panel";
 import {
   IconChipMeta,
@@ -29,6 +29,9 @@ import {
 import type { PokerAllowedAction, PokerTableBridge } from "@/features/tables/poker-table-ui-types";
 import { PokerSeatHud } from "@/features/tables/poker-seat-hud";
 import type { TableDetailApi } from "@/lib/lobby/api-tables";
+import { getTableUiCopy } from "@/lib/i18n/table-copy";
+import { resolveFeltPreset } from "@/lib/settings/table-felt-presets";
+import { useClientPrefs } from "@/lib/settings/use-client-prefs";
 import { hapticYourTurn } from "@/lib/table/table-haptics";
 import {
   playBoardStreet,
@@ -37,6 +40,7 @@ import {
   playHeroHoleDeal,
   playPotToWinners,
   playYourTurn,
+  prefetchTableSounds,
   resumeTableAudio,
 } from "@/lib/table/table-sounds";
 
@@ -52,10 +56,10 @@ const PAYOUT_RESULT_AFTER_CHIPS_MS = 380;
  * Portrait 6-max: seats hug the felt rail (reference apps keep avatars tight to the oval).
  */
 const LAYOUT_6: { x: number; y: number }[] = [
-  { x: 0.5, y: 0.84 },
+  { x: 0.5, y: 0.94 },
   { x: 0.075, y: 0.695 },
   { x: 0.075, y: 0.305 },
-  { x: 0.5, y: 0.145 },
+  { x: 0.5, y: 0.07 },
   { x: 0.925, y: 0.305 },
   { x: 0.925, y: 0.695 },
 ];
@@ -144,10 +148,14 @@ export function PokerTableSvgView({
   const tableDataRef = useRef(data);
   tableDataRef.current = data;
   const [dims, setDims] = useState({ width: 360, height: 520 });
+  const prefs = useClientPrefs();
+  const tableCopy = useMemo(() => getTableUiCopy(prefs.language), [prefs.language]);
+  const felt = useMemo(() => resolveFeltPreset(prefs.tableTheme), [prefs.tableTheme]);
 
   useEffect(() => {
     const unlock = () => {
       resumeTableAudio();
+      prefetchTableSounds();
     };
     window.addEventListener("pointerdown", unlock, { passive: true });
     return () => window.removeEventListener("pointerdown", unlock);
@@ -177,8 +185,9 @@ export function PokerTableSvgView({
         sitPendingSeat,
         viewerUserId,
         defaultRaiseTo,
+        copy: tableCopy,
       }),
-    [data, dims, live, liveReady, sitPendingSeat, viewerUserId, defaultRaiseTo],
+    [data, dims, live, liveReady, sitPendingSeat, viewerUserId, defaultRaiseTo, tableCopy],
   );
 
   const latestUiPotRef = useRef(ui.pot);
@@ -632,10 +641,17 @@ export function PokerTableSvgView({
   }, [viewerUserId, ui.payouts]);
 
   return (
-    <div className="relative h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-gradient-to-b from-[#1a0c10] via-[#120608] to-[#0a0406]">
-      {/* Full-screen felt tint behind the oval */}
+    <div
+      className="relative h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] overflow-hidden"
+      style={{
+        background: `linear-gradient(to bottom, ${felt.outerBg[0]}, ${felt.outerBg[1]}, ${felt.outerBg[2]})`,
+      }}
+    >
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_85%_70%_at_50%_42%,rgba(22,120,72,0.22),transparent_65%)]"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background: `radial-gradient(ellipse 85% 70% at 50% 42%, ${felt.ambientTint}, transparent 65%)`,
+        }}
         aria-hidden
       />
 
@@ -644,6 +660,7 @@ export function PokerTableSvgView({
         <div className="flex min-h-0 flex-1 items-center justify-center px-1">
           <div
             ref={wrapRef}
+            data-card-style={prefs.cardStyle}
             className="relative mx-auto max-h-full shrink-0"
             style={{
               width:
@@ -661,9 +678,9 @@ export function PokerTableSvgView({
             >
               <defs>
                 <radialGradient id={`feltG-${feltGradId}`} cx="50%" cy="40%" r="78%">
-                  <stop offset="0%" stopColor="#158050" />
-                  <stop offset="55%" stopColor="#0d5a38" />
-                  <stop offset="100%" stopColor="#052818" />
+                  <stop offset="0%" stopColor={felt.feltStops[0]} />
+                  <stop offset="55%" stopColor={felt.feltStops[1]} />
+                  <stop offset="100%" stopColor={felt.feltStops[2]} />
                 </radialGradient>
               </defs>
               {/*
@@ -671,75 +688,75 @@ export function PokerTableSvgView({
                 Labels and board cards stay in true user space so glyphs and card aspect are not squashed.
               */}
               {/* Cushioned outer rail (dark “bumper”) — vertical pill. */}
-                <ellipse cx="32.5" cy="50" rx="24.7" ry="48.5" fill="#141416" stroke="#0a0a0b" strokeWidth="0.45" />
-                <ellipse cx="32.5" cy="50" rx="23.53" ry="47" fill="#1c1c1f" stroke="#2a2a2e" strokeWidth="0.2" />
-                {/* Inner felt oval + subtle inner ring (reference: green + thin inset line). */}
-                <ellipse
-                  cx="32.5"
-                  cy="50"
-                  rx="20.28"
-                  ry="44.2"
-                  fill={`url(#feltG-${feltGradId})`}
-                  stroke="#0a3220"
-                  strokeWidth="0.22"
-                />
-                <ellipse
-                  cx="32.5"
-                  cy="50"
-                  rx="19.175"
-                  ry="42.6"
-                  fill="none"
-                  stroke="#2d6b48"
-                  strokeWidth="0.12"
-                  opacity="0.85"
-                />
-                <text x="32.5" y="24.5" textAnchor="middle" fill="#94a3b8" fontSize="1.85">
-                  {ui.streetLabel ?? ""}
-                </text>
-                <text x="32.5" y="29" textAnchor="middle" fill="#cbd5e1" fontSize="2.15" fontWeight="600">
-                  Pot Amt.
-                </text>
-                <text x="32.5" y="33.5" textAnchor="middle" fill="#fef9c3" fontSize="2.85" fontWeight="800">
-                  {`💰 $${ui.potDisplay.toLocaleString()}`}
-                </text>
-                {/* Community cards (above pot line in paint order = visually on felt below labels). */}
-                <g transform="translate(32.5, 53.5)">
-                  {ui.board.map((code, idx) => {
-                    const w = 6.2;
-                    const gap = 1.8;
-                    const startX = (-(ui.board.length * w - (ui.board.length - 1) * gap)) / 2;
-                    const x = startX + idx * (w - gap);
-                    const red = isRedSuit(code);
-                    const dealing = boardDealFromIdx != null && idx >= boardDealFromIdx;
-                    const dealStart = boardDealFromIdx ?? 0;
-                    return (
-                      <g key={`${ui.handSeq ?? 0}-${idx}-${code}`} transform={`translate(${x}, ${-w * 0.65})`}>
-                        <g
-                          className={dealing ? "poker-board-card-deal" : undefined}
-                          style={
-                            dealing
-                              ? ({
-                                animationDelay: `${(idx - dealStart) * 88}ms`,
-                              } as CSSProperties)
-                              : undefined
-                          }
+              <ellipse cx="32.5" cy="50" rx="24.7" ry="48.5" fill="#141416" stroke="#0a0a0b" strokeWidth="0.45" />
+              <ellipse cx="32.5" cy="50" rx="23.53" ry="47" fill="#1c1c1f" stroke="#2a2a2e" strokeWidth="0.2" />
+              {/* Inner felt oval + subtle inner ring (reference: green + thin inset line). */}
+              <ellipse
+                cx="32.5"
+                cy="50"
+                rx="20.28"
+                ry="44.2"
+                fill={`url(#feltG-${feltGradId})`}
+                stroke={felt.feltStroke}
+                strokeWidth="0.22"
+              />
+              <ellipse
+                cx="32.5"
+                cy="50"
+                rx="19.175"
+                ry="42.6"
+                fill="none"
+                stroke={felt.feltInsetRing}
+                strokeWidth="0.12"
+                opacity="0.85"
+              />
+              <text x="32.5" y="24.5" textAnchor="middle" fill="#94a3b8" fontSize="1.85">
+                {ui.streetLabel ?? ""}
+              </text>
+              <text x="32.5" y="29" textAnchor="middle" fill="#cbd5e1" fontSize="2.15" fontWeight="600">
+                {tableCopy.potLabel}
+              </text>
+              <text x="32.5" y="33.5" textAnchor="middle" fill="#fef9c3" fontSize="2.85" fontWeight="800">
+                {`💰 ${tableCopy.potAmountPrefix} ${ui.potDisplay.toLocaleString()}`}
+              </text>
+              {/* Community cards (above pot line in paint order = visually on felt below labels). */}
+              <g transform="translate(32.5, 53.5)">
+                {ui.board.map((code, idx) => {
+                  const w = 6.2;
+                  const gap = 1.8;
+                  const startX = (-(ui.board.length * w - (ui.board.length - 1) * gap)) / 2;
+                  const x = startX + idx * (w - gap);
+                  const fill = suitSvgFill(code, prefs.cardStyle);
+                  const dealing = boardDealFromIdx != null && idx >= boardDealFromIdx;
+                  const dealStart = boardDealFromIdx ?? 0;
+                  return (
+                    <g key={`${ui.handSeq ?? 0}-${idx}-${code}`} transform={`translate(${x}, ${-w * 0.65})`}>
+                      <g
+                        className={dealing ? "poker-board-card-deal" : undefined}
+                        style={
+                          dealing
+                            ? ({
+                              animationDelay: `${(idx - dealStart) * 88}ms`,
+                            } as CSSProperties)
+                            : undefined
+                        }
+                      >
+                        <rect width={w} height={w * 1.35} rx="0.6" fill="#fdfcfa" stroke="#64748b" strokeWidth="0.15" />
+                        <text
+                          x={w / 2}
+                          y={w * 0.72}
+                          textAnchor="middle"
+                          fontSize="2.4"
+                          fontWeight="700"
+                          fill={fill}
                         >
-                          <rect width={w} height={w * 1.35} rx="0.6" fill="#fdfcfa" stroke="#64748b" strokeWidth="0.15" />
-                          <text
-                            x={w / 2}
-                            y={w * 0.72}
-                            textAnchor="middle"
-                            fontSize="2.4"
-                            fontWeight="700"
-                            fill={red ? "#dc2626" : "#0f172a"}
-                          >
-                            {formatCard(code)}
-                          </text>
-                        </g>
+                          {formatCard(code)}
+                        </text>
                       </g>
-                    );
-                  })}
-                </g>
+                    </g>
+                  );
+                })}
+              </g>
             </svg>
 
             <div className="pointer-events-none absolute inset-0 z-[4] overflow-visible" aria-hidden>
@@ -782,7 +799,6 @@ export function PokerTableSvgView({
                   isHero={isHero}
                   isAct={isAct}
                   turnFrac={turnFrac}
-                  heroHolesDealing={heroHolesDealing}
                   showHoleBacksForOthers={ui.showHoleBacksForOthers}
                   live={ui.live}
                   viewerSeatIndex={ui.viewerSeatIndex}
@@ -801,19 +817,18 @@ export function PokerTableSvgView({
               >
                 <div className="poker-hand-outcome-ticker pointer-events-none w-full max-w-[min(24rem,96%)]">
                   <div
-                  className={`rounded-xl border px-3 py-2 shadow-[0_12px_40px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md sm:px-4 sm:py-2.5 ${
-                    viewerPayoutTotal > 0
-                      ? "poker-hand-outcome-ticker--hero-win border-emerald-500/35 bg-gradient-to-b from-emerald-950/88 via-zinc-950/90 to-black/90"
-                      : "border-amber-500/[0.22] bg-gradient-to-b from-zinc-950/92 via-zinc-950/88 to-black/90"
-                  }`}
-                >
+                    className={`rounded-xl border px-3 py-2 shadow-[0_12px_40px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md sm:px-4 sm:py-2.5 ${viewerPayoutTotal > 0
+                        ? "poker-hand-outcome-ticker--hero-win border-emerald-500/35 bg-gradient-to-b from-emerald-950/88 via-zinc-950/90 to-black/90"
+                        : "border-amber-500/[0.22] bg-gradient-to-b from-zinc-950/92 via-zinc-950/88 to-black/90"
+                      }`}
+                  >
                     <p className="text-center text-[9px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
-                      Pot awarded
+                      {tableCopy.potAwarded}
                     </p>
                     {ui.payouts!.length === 1 ? (
                       <p className="mt-1 text-center text-[13px] font-semibold leading-snug tracking-tight text-zinc-100 sm:text-sm">
-                        <span className="text-amber-200/95">Seat {ui.payouts![0]!.seatIndex + 1}</span>
-                        <span className="text-zinc-500"> wins </span>
+                        <span className="text-amber-200/95">{tableCopy.seatNumber(ui.payouts![0]!.seatIndex)}</span>
+                        <span className="text-zinc-500"> {tableCopy.wins} </span>
                         <span className="tabular-nums text-amber-300">
                           ${ui.payouts![0]!.amount.toLocaleString()}
                         </span>
@@ -821,12 +836,12 @@ export function PokerTableSvgView({
                     ) : (
                       <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-[12px] font-medium leading-snug text-zinc-200 sm:text-[13px]">
                         <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-amber-200/90">
-                          Split pot
+                          {tableCopy.splitPot}
                         </span>
                         {ui.payouts!.map((p, i) => (
                           <span key={`${p.seatIndex}-${p.userId}`} className="inline-flex items-center gap-1 tabular-nums">
                             {i > 0 ? <span className="text-zinc-600" aria-hidden>·</span> : null}
-                            <span className="text-zinc-400">Seat {p.seatIndex + 1}</span>
+                            <span className="text-zinc-400">{tableCopy.seatNumber(p.seatIndex)}</span>
                             <span className="font-semibold text-amber-300">${p.amount.toLocaleString()}</span>
                           </span>
                         ))}
@@ -834,7 +849,7 @@ export function PokerTableSvgView({
                     )}
                     {viewerPayoutTotal > 0 ? (
                       <p className="mt-1.5 border-t border-white/[0.06] pt-1.5 text-center text-[11px] font-medium text-amber-100/95">
-                        You collected{" "}
+                        {tableCopy.youCollected}{" "}
                         <span className="font-bold tabular-nums text-amber-300">
                           ${viewerPayoutTotal.toLocaleString()}
                         </span>
@@ -925,6 +940,17 @@ export function PokerTableSvgView({
               </button>
             </div>
           </details>
+          <span
+            className={`inline-flex items-center gap-1.5 min-h-[stretch] rounded-full border px-2 py-1.5 text-[9px] font-bold tracking-wide ${ui.liveReady
+              ? "border-emerald-500/30 bg-emerald-950/85 text-emerald-100"
+              : ui.live
+                ? "border-amber-500/25 bg-amber-950/80 text-amber-100"
+                : "border-zinc-600/50 bg-zinc-900/90 text-zinc-400"
+              }`}
+          >
+            <IconLiveDot live={ui.liveReady} connecting={ui.live && !ui.liveReady} />
+            {ui.liveReady ? "Live" : ui.live ? "…" : "Off"}
+          </span>
           <div className="min-w-0 flex-1 px-1 text-center text-[10px] leading-tight text-zinc-200">
             <div className="flex items-center justify-center gap-1.5 truncate">
               <IconPlayingCards className="h-3.5 w-3.5 shrink-0 text-amber-400/90" aria-hidden />
@@ -938,17 +964,7 @@ export function PokerTableSvgView({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1.5 text-[9px] font-bold tracking-wide ${ui.liveReady
-                  ? "border-emerald-500/30 bg-emerald-950/85 text-emerald-100"
-                  : ui.live
-                    ? "border-amber-500/25 bg-amber-950/80 text-amber-100"
-                    : "border-zinc-600/50 bg-zinc-900/90 text-zinc-400"
-                }`}
-            >
-              <IconLiveDot live={ui.liveReady} connecting={ui.live && !ui.liveReady} />
-              {ui.liveReady ? "Live" : ui.live ? "…" : "Off"}
-            </span>
+
             <button
               type="button"
               onClick={() => bridge.onBack()}
@@ -985,10 +1001,10 @@ export function PokerTableSvgView({
                   type="button"
                   onClick={() => dispatch(a)}
                   className={`min-h-[48px] min-w-[5.5rem] rounded-xl px-3 py-2 text-sm font-black text-white shadow-lg active:scale-[0.98] ${a.id === "fold"
-                      ? "bg-gradient-to-b from-rose-600 to-rose-900"
-                      : a.id === "check" || a.id === "call"
-                        ? "bg-gradient-to-b from-emerald-600 to-emerald-900"
-                        : "bg-gradient-to-b from-cyan-500 to-sky-800"
+                    ? "bg-gradient-to-b from-rose-600 to-rose-900"
+                    : a.id === "check" || a.id === "call"
+                      ? "bg-gradient-to-b from-emerald-600 to-emerald-900"
+                      : "bg-gradient-to-b from-cyan-500 to-sky-800"
                     }`}
                 >
                   {a.id === "raise" || a.id === "bet" ? (

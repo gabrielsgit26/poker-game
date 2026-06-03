@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n/i18n-context";
+import { notifyError, notifySuccess } from "@/lib/notifications/notify";
 import {
   DashboardListSkeleton,
   DashboardPanel,
@@ -18,6 +19,7 @@ import {
   patchWalletCancelRequest,
   postWalletDeposit,
   postWalletWithdrawal,
+  type WalletBalancePayload,
   type WalletRequestRow,
 } from "@/lib/wallet/api-wallet";
 import { useAuthActions } from "@/providers/auth-context";
@@ -32,6 +34,7 @@ function statusBadge(s: WalletRequestRow["status"]): string {
 }
 
 export function WalletView() {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const { refresh } = useAuthActions();
   const live = Boolean(apiBase());
@@ -56,13 +59,20 @@ export function WalletView() {
   const depMut = useMutation({
     mutationFn: async () => {
       const n = Math.floor(Number(depAmt));
-      if (!Number.isFinite(n) || n < 1) throw new Error("Enter a valid amount.");
-      const row = await postWalletDeposit(n, depNote.trim() || undefined);
-      if (!row) throw new Error("Request failed.");
-      return row;
+      if (!Number.isFinite(n) || n < 1) throw new Error(t("toast.enterPositive"));
+      const snap = queryClient.getQueryData<WalletBalancePayload | null>(["wallet", "balance"]);
+      if (snap && n > snap.availableDepositHeadroomChips) {
+        throw new Error(
+          t("toast.depositExceedsHeadroom").replace(
+            "{{chips}}",
+            formatChips(snap.availableDepositHeadroomChips),
+          ),
+        );
+      }
+      return postWalletDeposit(n, depNote.trim() || undefined);
     },
     onSuccess: async () => {
-      toast.success("Deposit request submitted", { description: "An administrator will review it." });
+      notifySuccess(t("toast.depositOk"), { description: t("toast.depositOkDesc") });
       setDepAmt("");
       setDepNote("");
       await refresh();
@@ -70,20 +80,27 @@ export function WalletView() {
       void queryClient.invalidateQueries({ queryKey: ["lobby"] });
     },
     onError: (e: unknown) => {
-      toast.error(e instanceof Error ? e.message : "Could not submit deposit.");
+      notifyError(e instanceof Error ? e.message : t("toast.depositFail"));
     },
   });
 
   const wdMut = useMutation({
     mutationFn: async () => {
       const n = Math.floor(Number(wdAmt));
-      if (!Number.isFinite(n) || n < 1) throw new Error("Enter a valid amount.");
-      const row = await postWalletWithdrawal(n, wdNote.trim() || undefined);
-      if (!row) throw new Error("Request failed.");
-      return row;
+      if (!Number.isFinite(n) || n < 1) throw new Error(t("toast.enterPositive"));
+      const snap = queryClient.getQueryData<WalletBalancePayload | null>(["wallet", "balance"]);
+      if (snap && n > snap.availableForWithdrawalChips) {
+        throw new Error(
+          t("toast.withdrawExceedsAvailable").replace(
+            "{{chips}}",
+            formatChips(snap.availableForWithdrawalChips),
+          ),
+        );
+      }
+      return postWalletWithdrawal(n, wdNote.trim() || undefined);
     },
     onSuccess: async () => {
-      toast.success("Withdrawal request submitted", { description: "An administrator will review it." });
+      notifySuccess(t("toast.withdrawOk"), { description: t("toast.withdrawOkDesc") });
       setWdAmt("");
       setWdNote("");
       await refresh();
@@ -91,19 +108,19 @@ export function WalletView() {
       void queryClient.invalidateQueries({ queryKey: ["lobby"] });
     },
     onError: (e: unknown) => {
-      toast.error(e instanceof Error ? e.message : "Could not submit withdrawal.");
+      notifyError(e instanceof Error ? e.message : t("toast.withdrawFail"));
     },
   });
 
   const cancelMut = useMutation({
     mutationFn: (id: string) => patchWalletCancelRequest(id),
     onSuccess: async () => {
-      toast.success("Request cancelled");
+      notifySuccess(t("toast.requestCancelled"));
       await refresh();
       void queryClient.invalidateQueries({ queryKey: ["wallet"] });
       void queryClient.invalidateQueries({ queryKey: ["lobby"] });
     },
-    onError: () => toast.error("Could not cancel request."),
+    onError: () => notifyError(t("toast.cancelFail")),
   });
 
   if (!live) {
@@ -140,14 +157,19 @@ export function WalletView() {
           <DashboardQueryError message="Could not load balance." onRetry={() => void balQ.refetch()} />
         ) : (
           <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight text-amber-100">
-            {formatChips(balQ.data ?? 0)}
+            {formatChips(balQ.data?.balanceChips ?? 0)}
           </p>
         )}
       </DashboardPanel>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <DashboardPanel>
-          <DashboardSectionHeader title="Add funds" description="Creates a pending deposit for admin approval." />
+          <DashboardSectionHeader title="Add funds" description={t("wallet.depositIntro")} />
+          {balQ.data ? (
+            <p className="mt-3 text-xs leading-relaxed text-zinc-500">
+              {t("wallet.depositCapHint").replace("{{chips}}", formatChips(balQ.data.availableDepositHeadroomChips))}
+            </p>
+          ) : null}
           <label className="mt-4 block text-sm text-zinc-300">
             Amount (chips)
             <input
@@ -170,7 +192,7 @@ export function WalletView() {
           </label>
           <button
             type="button"
-            disabled={depMut.isPending}
+            disabled={depMut.isPending || !balQ.data}
             onClick={() => depMut.mutate()}
             className="mt-4 w-full rounded-xl bg-emerald-600/90 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
           >
@@ -179,10 +201,12 @@ export function WalletView() {
         </DashboardPanel>
 
         <DashboardPanel>
-          <DashboardSectionHeader
-            title="Withdraw"
-            description="Creates a pending withdrawal. Balance is checked when you submit and when admin approves."
-          />
+          <DashboardSectionHeader title="Withdraw" description={t("wallet.withdrawIntro")} />
+          {balQ.data ? (
+            <p className="mt-3 text-xs leading-relaxed text-zinc-500">
+              {t("wallet.withdrawAvailHint").replace("{{chips}}", formatChips(balQ.data.availableForWithdrawalChips))}
+            </p>
+          ) : null}
           <label className="mt-4 block text-sm text-zinc-300">
             Amount (chips)
             <input
@@ -204,7 +228,7 @@ export function WalletView() {
           </label>
           <button
             type="button"
-            disabled={wdMut.isPending}
+            disabled={wdMut.isPending || !balQ.data}
             onClick={() => wdMut.mutate()}
             className="mt-4 w-full rounded-xl border border-rose-500/40 bg-rose-950/35 py-2.5 text-sm font-semibold text-rose-100 transition hover:bg-rose-950/50 disabled:opacity-50"
           >

@@ -3,7 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n/i18n-context";
+import { notifyError, notifySuccess } from "@/lib/notifications/notify";
 import { AdminLedgerActivitySection } from "@/features/admin/admin-ledger-activity-section";
 import { AdminSignupActivitySection } from "@/features/admin/admin-signup-activity-section";
 import { AdminWalletConsole } from "@/features/admin/admin-wallet-console";
@@ -47,6 +48,7 @@ function tableStatusBadgeClass(status: string): string {
 
 export function AdminDashboardView() {
   const queryClient = useQueryClient();
+  const { t } = useI18n();
   const { skipGate, ready, me } = useAuthSession();
   const isAdmin = me?.authenticated === true && me.isPlatformAdmin === true;
   const [tab, setTab] = useState<AdminTab>("overview");
@@ -164,8 +166,10 @@ export function AdminDashboardView() {
       return r;
     },
     onSuccess: (r) => {
-      toast.success("Platform grant applied", {
-        description: `${r.targetUserId} balance now ${formatChips(r.newBalance)}.`,
+      notifySuccess(t("toast.grantOk"), {
+        description: t("toast.grantDesc")
+          .replace("{{user}}", r.targetUserId)
+          .replace("{{balance}}", formatChips(r.newBalance)),
       });
       setDelta("");
       setNote("");
@@ -179,7 +183,7 @@ export function AdminDashboardView() {
       void queryClient.invalidateQueries({ queryKey: ["lobby"] });
     },
     onError: (e: unknown) => {
-      toast.error(e instanceof Error ? e.message : "Grant failed.");
+      notifyError(e instanceof Error ? e.message : t("toast.grantFail"));
     },
   });
 

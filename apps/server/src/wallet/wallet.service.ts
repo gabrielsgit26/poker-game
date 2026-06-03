@@ -13,6 +13,9 @@ import {
   PlatformWalletRequestStatus,
 } from './platform-wallet-request.schema';
 
+/** Max chips the platform wallet may hold after approved deposits (aligned with per-request cap). */
+export const MAX_PLATFORM_WALLET_CHIPS = 1_000_000_000;
+
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -34,6 +37,39 @@ export class WalletService {
   async getBalance(userId: string): Promise<number> {
     const u = await this.userModel.findOne({ userId }).lean();
     return floorBalance(u);
+  }
+
+  /** Balance plus pending request exposure for deposit/withdraw forms. */
+  async getWalletSummary(userId: string) {
+    const [bal, pendingWithdrawalChips, pendingDepositChips] = await Promise.all([
+      this.getBalance(userId),
+      this.sumPendingAmount(userId, 'WITHDRAWAL'),
+      this.sumPendingAmount(userId, 'DEPOSIT'),
+    ]);
+    const availableForWithdrawalChips = Math.max(0, bal - pendingWithdrawalChips);
+    const availableDepositHeadroomChips = Math.max(
+      0,
+      MAX_PLATFORM_WALLET_CHIPS - bal - pendingDepositChips,
+    );
+    return {
+      balanceChips: bal,
+      pendingWithdrawalChips,
+      availableForWithdrawalChips,
+      pendingDepositChips,
+      maxPlatformWalletChips: MAX_PLATFORM_WALLET_CHIPS,
+      availableDepositHeadroomChips,
+    };
+  }
+
+  private async sumPendingAmount(userId: string, kind: PlatformWalletKind): Promise<number> {
+    const agg = await this.reqModel
+      .aggregate<{ total: number }>([
+        { $match: { userId, status: 'PENDING', kind } },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ])
+      .exec();
+    const raw = agg[0]?.total;
+    return Math.max(0, Math.floor(Number(raw) || 0));
   }
 
   async listMine(userId: string, limit: number, skip: number) {
@@ -58,6 +94,14 @@ export class WalletService {
 
   async createDeposit(userId: string, amount: number, memberNote?: string) {
     const a = this.parseAmount(amount);
+    const bal = await this.getBalance(userId);
+    const pendingDeposits = await this.sumPendingAmount(userId, 'DEPOSIT');
+    const headroom = Math.max(0, MAX_PLATFORM_WALLET_CHIPS - bal - pendingDeposits);
+    if (a > headroom) {
+      throw new BadRequestException(
+        `This deposit would exceed the platform wallet cap (${MAX_PLATFORM_WALLET_CHIPS.toLocaleString()} chips). You can request at most ${headroom} chips right now.`,
+      );
+    }
     const doc = await this.reqModel.create({
       userId,
       kind: 'DEPOSIT',
@@ -71,8 +115,12 @@ export class WalletService {
   async createWithdrawal(userId: string, amount: number, memberNote?: string) {
     const a = this.parseAmount(amount);
     const bal = await this.getBalance(userId);
-    if (bal < a) {
-      throw new BadRequestException('Insufficient platform wallet balance.');
+    const pendingWithdrawals = await this.sumPendingAmount(userId, 'WITHDRAWAL');
+    const available = Math.max(0, bal - pendingWithdrawals);
+    if (a > available) {
+      throw new BadRequestException(
+        `Insufficient available balance for withdrawal. You can request at most ${available} chips right now (wallet ${bal}; ${pendingWithdrawals} chips already reserved by pending withdrawals).`,
+      );
     }
     const doc = await this.reqModel.create({
       userId,
@@ -244,7 +292,7 @@ export class WalletService {
     if (!Number.isFinite(n) || n < 1) {
       throw new BadRequestException('amount must be a positive integer.');
     }
-    if (n > 1_000_000_000) {
+    if (n > MAX_PLATFORM_WALLET_CHIPS) {
       throw new BadRequestException('amount exceeds maximum.');
     }
     return n;

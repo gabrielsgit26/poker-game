@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n/i18n-context";
+import { notifyError, notifySuccess } from "@/lib/notifications/notify";
 import {
   DashboardEmptyState,
   DashboardFooterNav,
@@ -47,6 +48,7 @@ function isPendingJoinRow(r: { status: string }): boolean {
 
 export function ManagerDashboardView() {
   const queryClient = useQueryClient();
+  const { t } = useI18n();
   const { refresh } = useAuthActions();
   const [tab, setTab] = useState<ManagerTab>("overview");
   const [tablesSkip, setTablesSkip] = useState(0);
@@ -224,11 +226,11 @@ export function ManagerDashboardView() {
       if (!ok) throw new Error("Server rejected the decision.");
     },
     onSuccess: (_data, vars) => {
-      toast.success(vars.approve ? "Join request approved" : "Join request rejected");
+      notifySuccess(vars.approve ? t("toast.joinApproved") : t("toast.joinRejected"));
       invalidateManagerData();
     },
     onError: (e: unknown) => {
-      toast.error(e instanceof Error ? e.message : "Could not update join request.");
+      notifyError(e instanceof Error ? e.message : t("toast.joinFail"));
     },
   });
 
@@ -238,12 +240,12 @@ export function ManagerDashboardView() {
       if (!ok) throw new Error("Server rejected the decision.");
     },
     onSuccess: (_data, vars) => {
-      toast.success(vars.approve ? "Cash-out approved" : "Cash-out rejected");
+      notifySuccess(vars.approve ? t("toast.cashApproved") : t("toast.cashRejected"));
       void refresh();
       invalidateManagerData();
     },
     onError: (e: unknown) => {
-      toast.error(e instanceof Error ? e.message : "Could not update cash-out request.");
+      notifyError(e instanceof Error ? e.message : t("toast.cashFail"));
     },
   });
 

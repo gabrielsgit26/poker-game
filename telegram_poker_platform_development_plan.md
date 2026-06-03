@@ -986,13 +986,15 @@ Purpose:
 
 Show player account details and history.
 
+**Implementation (current repo):** server **`GET /profile`** returns balances, per-club chip rows, **`stats`** (including **`netChips`** from ledger and **`tracked`** for whether hand-level KPIs exist), and **`transactions`** (ledger + platform wallet requests). The web app loads this endpoint when **`NEXT_PUBLIC_API_URL`** is set and the user is signed in; without the API URL there is no mock profile payload.
+
 ### Sections
 
 - Avatar and username
 - Telegram ID hidden or masked
-- Total balance
+- Total balance (and platform vs clubs breakdown, aligned with the lobby header)
 - Club balances
-- Win/loss statistics
+- Win/loss statistics (placeholder until aggregates exist)
 - Hands played
 - Recent hands
 - Transaction history
@@ -1009,15 +1011,17 @@ Win Rate
 Biggest Pot Won
 ```
 
+Until hand history is persisted server-side, the UI may show placeholders for hand-derived stats while still showing **net chips** from the club chip ledger.
+
 ### Transaction List
 
 Each row:
 
 - Type
 - Amount
-- Club
+- Club (or “—” for platform wallet request rows)
 - Date
-- Balance after transaction
+- Balance after transaction (club ledger rows only; platform rows show “—”)
 
 ---
 
@@ -1544,9 +1548,9 @@ User can see a professional lobby.
 
 Build:
 
-- Profile page
-- Stats cards
-- Transaction list
+- Profile page (backed by **`GET /profile`**: display name, masked id, platform + per-club chip balances, merged activity from **`chip_ledger`** and **`platform_wallet_requests`**; no client-side mock when the API is configured)
+- Stats cards (net chips from ledger today; hands / win rate / biggest pot when hand-history aggregates exist)
+- Transaction list (club ledger rows + platform wallet request rows; “balance after” applies to club chips only)
 - Settings page
 - Sound/vibration settings
 - Theme selector
@@ -1638,12 +1642,12 @@ Build:
 - **Platform wallet** (play-money `platformBalanceChips` on the user; separate from club wallets)
 - **Platform requests:** player-initiated **deposit** and **withdrawal** rows (`platform_wallet_requests`) with **PENDING → APPROVED | REJECTED | CANCELLED** (player or admin may cancel pending items per product rules)
 - **Admin console:** list/filter queue, **approve / reject / cancel**, optional admin note; **daily UTC report** of approved deposit vs withdrawal volume
-- REST: **`GET /wallet/balance`**, **`GET /wallet/requests`**, **`POST /wallet/deposit-requests`**, **`POST /wallet/withdrawal-requests`**, **`PATCH /wallet/requests/:id/cancel`** (player); **`GET /admin/wallet/requests`**, **`PATCH /admin/wallet/requests/:id`**, **`GET /admin/wallet/report/daily`** (platform admin)
-- Web **`/wallet`** page: request forms, detailed history table, link from **Profile** and **Lobby** balance; bottom nav **Wallet** with icon
+- REST: **`GET /wallet/balance`**, **`GET /wallet/requests`**, **`POST /wallet/deposit-requests`**, **`POST /wallet/withdrawal-requests`**, **`PATCH /wallet/requests/:id/cancel`** (player); **`GET /admin/wallet/requests`**, **`PATCH /admin/wallet/requests/:id`**, **`GET /admin/wallet/report/daily`** (platform admin); **`GET /profile`** (authenticated player snapshot for the profile UI: balances + merged activity)
+- Web **`/wallet`** page: request forms, detailed history table; primary navigation via **Lobby** balance link and bottom nav **Wallet** tab (profile shows the same totals inline—no duplicate wallet CTA)
 - Buy-in / cash-out at the **table/club** layer (existing club ledger) remains in scope alongside the platform wallet above
 - Manager credit adjustment (club members)
 - Admin club-chip grant (**`PLATFORM_ADJUST`**)
-- Transaction history (club ledger + platform request rows as applicable)
+- Transaction history (club ledger + platform request rows; profile **`GET /profile`** returns a capped merged feed for the account screen)
 
 Result:
 

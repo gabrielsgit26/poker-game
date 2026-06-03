@@ -18,8 +18,7 @@ export class WalletController {
 
   @Get('balance')
   async balance(@Req() req: Request) {
-    const balanceChips = await this.wallet.getBalance(req.pokerUserId);
-    return { balanceChips };
+    return this.wallet.getWalletSummary(req.pokerUserId);
   }
 
   @Get('requests')

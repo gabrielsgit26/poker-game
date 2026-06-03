@@ -10,7 +10,6 @@ export type PokerSeatHudProps = {
   isHero: boolean;
   isAct: boolean;
   turnFrac: number;
-  heroHolesDealing: boolean;
   showHoleBacksForOthers: boolean;
   live: boolean;
   viewerSeatIndex: number | null;
@@ -74,7 +73,6 @@ export function PokerSeatHud({
   isHero,
   isAct,
   turnFrac,
-  heroHolesDealing,
   showHoleBacksForOthers,
   live,
   viewerSeatIndex,
@@ -100,10 +98,39 @@ export function PokerSeatHud({
 
   const widthClass = isHero ? "w-[min(46vw,12.5rem)]" : "w-[min(42vw,11.5rem)] max-w-[min(42vw,11.5rem)]";
 
-  /** Seat on the right side of the table — fan cards toward center (left of avatar). */
-  const cardsTowardCenter = norm.x > 0.5;
+  /** Top / bottom center: no horizontal "inside" offset; cards stay centered on the avatar. */
+  const isPoleSeat = Math.abs(norm.x - 0.5) < 0.18;
+  const isBottomPole = isPoleSeat && norm.y > 0.5;
+  const isRightSide = !isPoleSeat && norm.x > 0.5;
+
   /** Dealer crown sits toward table center (left seats: crown right of avatar). */
   const dealerCrownSideClass = norm.x < 0.52 ? "flex-row" : "flex-row-reverse";
+
+  const holeFanPositionClass = isPoleSeat
+    ? isBottomPole
+      ? "bottom-full left-1/2 z-20 mb-1 -translate-x-1/2"
+      : "top-full left-1/2 z-20 mt-1 -translate-x-1/2"
+    : isRightSide
+      ? "right-full top-1/2 z-20 mr-1 -translate-y-1/2"
+      : "left-full top-1/2 z-20 ml-1 -translate-y-1/2";
+
+  const holeFan = showBacks || holes ? (
+    <div className={`pointer-events-none absolute ${holeFanPositionClass}`} aria-hidden>
+      <div className="flex shrink-0 items-start -space-x-2.5 pt-1">
+        {holes ? (
+          <>
+            <MiniCard code={holes[0]} size={isHero ? "hero" : "sm"} className="rotate-[7deg] shadow-lg ring-1 ring-black/20" />
+            <MiniCard code={holes[1]} size={isHero ? "hero" : "sm"} className="-rotate-[5deg] translate-y-1 shadow-lg ring-1 ring-black/20" />
+          </>
+        ) : (
+          <>
+            <OpponentCardBack className="rotate-[9deg] ring-1 ring-black/25" />
+            <OpponentCardBack className="-rotate-[5deg] translate-y-1 ring-1 ring-black/25" />
+          </>
+        )}
+      </div>
+    </div>
+  ) : null;
 
   return (
     <div
@@ -156,10 +183,8 @@ export function PokerSeatHud({
           ) : null}
         </div>
       ) : ( */}
-        <div
-          className={`relative mt-1 flex items-start justify-center pt-0.5 ${cardsTowardCenter ? "flex-row-reverse" : "flex-row"}`}
-        >
-          <div className="relative flex shrink-0 flex-col items-center">
+        <div className="mt-1 flex flex-col items-center justify-center pt-0.5">
+          <div className="relative inline-flex flex-col items-center">
             <div className={`flex items-start gap-1 ${dealerCrownSideClass}`}>
               <div
                 className={`relative z-10 rounded-full p-[2px] shadow-lg ${isAct ? "ring-2 ring-emerald-400/90 ring-offset-2 ring-offset-transparent" : ""
@@ -193,31 +218,11 @@ export function PokerSeatHud({
               </div>
               {seat.isButton ? <DealerCrownBadge /> : null}
             </div>
-            {seat.userId && chipTotal != null ? (
-              <div className="mt-2">
-                <BalancePill amount={chipTotal} />
-              </div>
-            ) : null}
+            {holeFan}
           </div>
-
-          {showBacks || holes ? (
-            <div className="absolute bottom-10 left-30 -translate-x-1/2 z-20">
-              <div
-                className="pointer-events-none flex shrink-0 items-start -space-x-2.5 pt-1"
-                aria-hidden
-              >
-                {holes ? (
-                  <>
-                    <MiniCard code={holes[0]} size={isHero ? "hero" : "sm"} className="rotate-[7deg] shadow-lg ring-1 ring-black/20" />
-                    <MiniCard code={holes[1]} size={isHero ? "hero" : "sm"} className="-rotate-[5deg] translate-y-1 shadow-lg ring-1 ring-black/20" />
-                  </>
-                ) : (
-                  <>
-                    <OpponentCardBack className="rotate-[9deg] ring-1 ring-black/25" />
-                    <OpponentCardBack className="-rotate-[5deg] translate-y-1 ring-1 ring-black/25" />
-                  </>
-                )}
-              </div>
+          {seat.userId && chipTotal != null ? (
+            <div className="mt-2">
+              <BalancePill amount={chipTotal} />
             </div>
           ) : null}
         </div>

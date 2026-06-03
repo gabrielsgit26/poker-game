@@ -24,14 +24,62 @@ export interface WalletRequestsPage {
   limit: number;
 }
 
-export async function fetchWalletBalance(): Promise<number | null> {
+/** Matches `GET /wallet/balance` (includes pending request exposure). */
+export interface WalletBalancePayload {
+  balanceChips: number;
+  pendingWithdrawalChips: number;
+  availableForWithdrawalChips: number;
+  pendingDepositChips: number;
+  maxPlatformWalletChips: number;
+  availableDepositHeadroomChips: number;
+}
+
+async function readApiErrorMessage(res: Response): Promise<string> {
+  try {
+    const j = (await res.json()) as { message?: unknown };
+    const m = j.message;
+    if (Array.isArray(m)) return m.map(String).join("; ");
+    if (typeof m === "string" && m.trim()) return m.trim();
+  } catch {
+    /* ignore */
+  }
+  return res.statusText || `Request failed (${res.status})`;
+}
+
+function normalizeWalletBalance(j: Record<string, unknown>): WalletBalancePayload {
+  const balanceChips = Math.max(0, Math.floor(Number(j.balanceChips) || 0));
+  const pendingWithdrawalChips = Math.max(0, Math.floor(Number(j.pendingWithdrawalChips) || 0));
+  const pendingDepositChips = Math.max(0, Math.floor(Number(j.pendingDepositChips) || 0));
+  const maxPlatformWalletChips = Math.max(
+    1,
+    Math.floor(Number(j.maxPlatformWalletChips) || 1_000_000_000),
+  );
+  const availableForWithdrawalChips =
+    j.availableForWithdrawalChips != null
+      ? Math.max(0, Math.floor(Number(j.availableForWithdrawalChips)))
+      : Math.max(0, balanceChips - pendingWithdrawalChips);
+  const availableDepositHeadroomChips =
+    j.availableDepositHeadroomChips != null
+      ? Math.max(0, Math.floor(Number(j.availableDepositHeadroomChips)))
+      : Math.max(0, maxPlatformWalletChips - balanceChips - pendingDepositChips);
+  return {
+    balanceChips,
+    pendingWithdrawalChips,
+    availableForWithdrawalChips,
+    pendingDepositChips,
+    maxPlatformWalletChips,
+    availableDepositHeadroomChips,
+  };
+}
+
+export async function fetchWalletBalance(): Promise<WalletBalancePayload | null> {
   const base = apiBase();
   if (!base) return null;
   try {
     const res = await credFetch(`${base}/wallet/balance`, { cache: "no-store" });
     if (!res.ok) return null;
-    const j = (await res.json()) as { balanceChips?: number };
-    return Math.max(0, Math.floor(Number(j.balanceChips) || 0));
+    const j = (await res.json()) as Record<string, unknown>;
+    return normalizeWalletBalance(j);
   } catch {
     return null;
   }
@@ -50,27 +98,27 @@ export async function fetchWalletRequests(skip = 0, limit = 30): Promise<WalletR
   }
 }
 
-export async function postWalletDeposit(amount: number, note?: string): Promise<WalletRequestRow | null> {
+export async function postWalletDeposit(amount: number, note?: string): Promise<WalletRequestRow> {
   const base = apiBase();
-  if (!base) return null;
+  if (!base) throw new Error("Offline.");
   const res = await credFetch(`${base}/wallet/deposit-requests`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ amount, note }),
   });
-  if (!res.ok) return null;
+  if (!res.ok) throw new Error(await readApiErrorMessage(res));
   return (await res.json()) as WalletRequestRow;
 }
 
-export async function postWalletWithdrawal(amount: number, note?: string): Promise<WalletRequestRow | null> {
+export async function postWalletWithdrawal(amount: number, note?: string): Promise<WalletRequestRow> {
   const base = apiBase();
-  if (!base) return null;
+  if (!base) throw new Error("Offline.");
   const res = await credFetch(`${base}/wallet/withdrawal-requests`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ amount, note }),
   });
-  if (!res.ok) return null;
+  if (!res.ok) throw new Error(await readApiErrorMessage(res));
   return (await res.json()) as WalletRequestRow;
 }
 

@@ -4,7 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n/i18n-context";
+import { notifyError, notifySuccess } from "@/lib/notifications/notify";
 import { PokerTableSvgView } from "@/features/tables/poker-table-svg-view";
 import type { PokerTableBridge } from "@/features/tables/poker-table-ui-types";
 import { TableBuyInModal } from "@/features/tables/table-buy-in-modal";
@@ -83,6 +84,7 @@ function TableGameHost({
 }
 
 export function TableDetailView({ tableId }: { tableId: string }) {
+  const { t } = useI18n();
   const router = useRouter();
   const queryClient = useQueryClient();
   const authUserId = useAuthUserId();
@@ -133,7 +135,7 @@ export function TableDetailView({ tableId }: { tableId: string }) {
       void queryClient.setQueryData(["table", tableId], d);
       setBuyInOpen(false);
       setBuyInSeat(null);
-      toast.success("You took a seat.");
+      notifySuccess(t("toast.seatTaken"));
       void refresh();
       void queryClient.invalidateQueries({ queryKey: ["lobby"] });
       void queryClient.invalidateQueries({ queryKey: ["tables"] });
@@ -145,7 +147,7 @@ export function TableDetailView({ tableId }: { tableId: string }) {
       const msg = e instanceof Error ? e.message : "Could not join this seat.";
       const authIssue =
         isApiRequestError(e) && (e.status === 401 || e.status === 403);
-      toast.error("Could not take seat", {
+      notifyError(t("toast.seatFail"), {
         description: msg,
         duration: 9000,
         ...(authIssue
@@ -170,10 +172,10 @@ export function TableDetailView({ tableId }: { tableId: string }) {
       void queryClient.invalidateQueries({
         queryKey: ["club", d.table.clubId, "chip-ledger"],
       });
-      toast.success("You left the seat.");
+      notifySuccess(t("toast.seatLeft"));
     },
     onError: (e: Error) => {
-      toast.error(e.message || "Could not leave the seat.");
+      notifyError(e.message || t("toast.seatLeaveFail"));
     },
   });
 
@@ -182,11 +184,11 @@ export function TableDetailView({ tableId }: { tableId: string }) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["lobby"] });
       void queryClient.invalidateQueries({ queryKey: ["tables"] });
-      toast.success("Table closed.");
+      notifySuccess(t("toast.tableClosed"));
       router.push("/lobby");
     },
     onError: (e: Error) => {
-      toast.error(e.message || "Could not close the table.");
+      notifyError(e.message || t("toast.tableCloseFail"));
     },
   });
 
@@ -213,15 +215,13 @@ export function TableDetailView({ tableId }: { tableId: string }) {
     (seatIndex: number) => {
       if (!data) return;
       if (data.viewerClubChipBalance < data.table.minBuyIn) {
-        toast.error(
-          `You need at least ${formatChips(data.table.minBuyIn)} club chips in this room to sit.`,
-        );
+        notifyError(t("toast.buyInNeed").replace("{{chips}}", formatChips(data.table.minBuyIn)));
         return;
       }
       setBuyInSeat(seatIndex);
       setBuyInOpen(true);
     },
-    [data],
+    [data, t],
   );
 
   const sendEngine = useCallback(

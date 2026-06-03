@@ -3,12 +3,13 @@
 import { useEffect } from "react";
 import { readPref } from "@/lib/settings/prefs";
 
-/** Applies `data-table-theme` on `<html>` from localStorage (see `globals.css`). */
+/** Applies `data-table-theme`, `data-card-style` on `<html>` from localStorage (see `globals.css`). */
 export function ThemeRoot() {
   useEffect(() => {
     const apply = () => {
       const t = readPref("tableTheme", "classic-green");
       document.documentElement.dataset.tableTheme = t;
+      document.documentElement.dataset.cardStyle = readPref("cardStyle", "standard");
     };
     apply();
     window.addEventListener("storage", apply);

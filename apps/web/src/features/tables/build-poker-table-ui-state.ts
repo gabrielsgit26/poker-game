@@ -1,16 +1,7 @@
+import type { TableUiCopy } from "@/lib/i18n/table-copy";
+import { getTableUiCopy } from "@/lib/i18n/table-copy";
 import type { TableDetailApi } from "@/lib/lobby/api-tables";
 import type { PokerAllowedAction, PokerSeatUi, PokerTableUiState } from "./poker-table-ui-types";
-
-function streetLabel(street: string): string {
-  const m: Record<string, string> = {
-    preflop: "Pre-flop",
-    flop: "Flop",
-    turn: "Turn",
-    river: "River",
-    showdown: "Showdown",
-  };
-  return m[street] ?? street;
-}
 
 export function buildPokerTableUiState(
   data: TableDetailApi,
@@ -21,8 +12,11 @@ export function buildPokerTableUiState(
     sitPendingSeat: number | null;
     viewerUserId: string | null;
     defaultRaiseTo: number;
+    /** When omitted, English copy is used. */
+    copy?: TableUiCopy;
   },
 ): PokerTableUiState {
+  const copy = opts.copy ?? getTableUiCopy("en");
   const { table, seats, viewerSeatIndex, actionTurn: turn, holdem, viewerHoleCards } = data;
   const n = Math.max(2, Math.min(9, table.maxPlayers));
 
@@ -45,7 +39,7 @@ export function buildPokerTableUiState(
       isBb: holdem ? holdem.bbSeat === i : false,
       holeCards:
         viewerSeatIndex === i && viewerHoleCards ? ([...viewerHoleCards] as [string, string]) : null,
-      revealedHoleCards: rev ? [...rev] as [string, string] : null,
+      revealedHoleCards: rev ? ([...rev] as [string, string]) : null,
     });
   }
 
@@ -94,19 +88,19 @@ export function buildPokerTableUiState(
 
   const allowed: PokerAllowedAction[] = [];
   if (socketReady && isViewerTurn && holdem && useEngineActions) {
-    allowed.push({ id: "fold", label: "Fold" });
+    allowed.push({ id: "fold", label: copy.fold });
     if (!facingBet) {
-      allowed.push({ id: "check", label: "Check" });
+      allowed.push({ id: "check", label: copy.check });
       if (holdem.maxStreetBet === 0 && mySeat && mySeat.stack > 0) {
         allowed.push({
           id: "bet",
-          label: `Bet ${table.bigBlind}`,
+          label: copy.bet(table.bigBlind),
           amount: Math.max(table.bigBlind, 1),
         });
       }
     } else {
       if (callAmount > 0 && mySeat && mySeat.stack >= callAmount) {
-        allowed.push({ id: "call", label: `Call ${callAmount.toLocaleString()}`, amount: callAmount });
+        allowed.push({ id: "call", label: copy.call(callAmount), amount: callAmount });
       }
       if (holdem.minRaise > 0 && mySeat) {
         const cap = mySeat.streetPut + mySeat.stack;
@@ -117,7 +111,7 @@ export function buildPokerTableUiState(
         if (minTo <= cap) {
           allowed.push({
             id: "raise",
-            label: "Raise",
+            label: copy.raise,
             amount: Math.min(opts.defaultRaiseTo, cap),
           });
         }
@@ -125,23 +119,23 @@ export function buildPokerTableUiState(
       if (mySeat && callAmount > 0 && mySeat.stack > 0) {
         const allTo = mySeat.streetPut + mySeat.stack;
         if (allTo > maxB) {
-          allowed.push({ id: "allin", label: "All-in", amount: allTo });
+          allowed.push({ id: "allin", label: copy.allIn, amount: allTo });
         }
       }
     }
   } else if (socketReady && isViewerTurn && !useEngineActions) {
-    allowed.push({ id: "fold", label: "Fold" });
-    if (!facingBet) allowed.push({ id: "check", label: "Check" });
+    allowed.push({ id: "fold", label: copy.fold });
+    if (!facingBet) allowed.push({ id: "check", label: copy.check });
   }
 
   let banner: string | null = null;
-  if (!holdem) banner = "Waiting for next hand";
-  else if (table.players < 2) banner = "Waiting for players";
+  if (!holdem) banner = copy.waitingNextHand;
+  else if (table.players < 2) banner = copy.waitingPlayers;
   else if (isViewerTurn && opts.live && !opts.liveReady && holdem && useEngineActions) {
-    banner = "Connecting to live table…";
-  } else if (isViewerTurn && socketReady) banner = "Your turn";
+    banner = copy.connectingLive;
+  } else if (isViewerTurn && socketReady) banner = copy.yourTurn;
   else if (activeSeatIndex !== null && table.players >= 2)
-    banner = `Seat ${activeSeatIndex + 1} to act`;
+    banner = copy.seatToAct(activeSeatIndex);
 
   const inHand = Boolean(holdem && holdem.phase !== "complete");
   const showHoleBacksForOthers = Boolean(
@@ -159,11 +153,13 @@ export function buildPokerTableUiState(
       ? (holdem.awardedPot ?? payoutTotal)
       : rawPot;
 
-  let streetLabelOut: string | null = holdem ? streetLabel(holdem.street) : null;
+  let streetLabelOut: string | null = holdem
+    ? copy.street[holdem.street] ?? holdem.street
+    : null;
   if (holdem?.phase === "complete") {
-    streetLabelOut = "Hand complete";
+    streetLabelOut = copy.handComplete;
   } else if (holdem?.phase === "showdown") {
-    streetLabelOut = "Showdown";
+    streetLabelOut = copy.showdownLabel;
   }
 
   return {

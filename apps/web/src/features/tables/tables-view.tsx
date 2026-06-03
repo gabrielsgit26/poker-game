@@ -4,7 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n/i18n-context";
+import { notifyError, notifySuccess } from "@/lib/notifications/notify";
 import { TableCard } from "@/features/lobby/table-card";
 import { fetchClubsList } from "@/lib/lobby/api-clubs";
 import { fetchTablesList, isApiRequestError, postCreateTable } from "@/lib/lobby/api-tables";
@@ -13,6 +14,7 @@ import type { TableCardModel } from "@/lib/lobby/types";
 import { useAuthSession } from "@/providers/auth-context";
 
 export function TablesView() {
+  const { t } = useI18n();
   const router = useRouter();
   const queryClient = useQueryClient();
   const hasApi = Boolean(process.env.NEXT_PUBLIC_API_URL?.trim());
@@ -64,15 +66,15 @@ export function TablesView() {
       void queryClient.invalidateQueries({ queryKey: ["tables"] });
       void queryClient.invalidateQueries({ queryKey: ["lobby"] });
       setName("");
-      toast.success("Table created", {
-        description: "It appears in the list below — open it to take a seat.",
+      notifySuccess(t("toast.tableCreated"), {
+        description: t("toast.tableCreateDesc"),
       });
     },
     onError: (e: unknown) => {
       const msg = e instanceof Error ? e.message : "Something went wrong.";
       const authIssue =
         isApiRequestError(e) && (e.status === 401 || e.status === 403);
-      toast.error("Could not create table", {
+      notifyError(t("toast.tableCreateFail"), {
         description: msg,
         duration: 9000,
         ...(authIssue

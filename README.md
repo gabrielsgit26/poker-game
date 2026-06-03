@@ -6,8 +6,8 @@ Monorepo aligned with `telegram_poker_platform_development_plan.md`.
 
 | Path | Purpose |
 |------|---------|
-| `apps/web` | Next.js — lobby, **`/wallet`** (platform balance, deposit/withdraw requests, history), **`/tables/*`** (**SVG** oval felt + **HTML** seat HUD / actions; chip flights + deal animations in CSS), **`/clubs/*`**, Socket.IO, TanStack Query |
-| `apps/server` | NestJS — **`GET /health`**, **`/auth/*`**, **`/clubs`**, **`/tables`**, **Socket.IO** (table rooms, `tableState` / `tableClosed`) |
+| `apps/web` | Next.js — lobby, **`/wallet`** (platform balance, deposit/withdraw requests, history), **`/profile`** (live data via **`GET /profile`** when the API is configured), **`/tables/*`** (**SVG** oval felt + **HTML** seat HUD / actions; chip flights + deal animations in CSS), **`/clubs/*`**, Socket.IO, TanStack Query |
+| `apps/server` | NestJS — **`GET /health`**, **`/auth/*`**, **`/profile`** (signed-in player snapshot: balances, club rows, merged ledger + platform wallet activity), **`/clubs`**, **`/tables`**, **`/wallet/*`**, **Socket.IO** (table rooms, `tableState` / `tableClosed`) |
 | `packages/shared` | Shared types and **`@telegram-poker/shared/poker-engine`** (NL hold’em: deck, streets, pot, showdown) |
 
 ## Developing without Telegram
