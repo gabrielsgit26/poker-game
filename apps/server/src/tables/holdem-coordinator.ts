@@ -21,6 +21,9 @@ import { REDIS_CLIENT } from '../redis/redis.module';
 const holdemKey = (tableId: string) => `poker:table:${tableId}:holdem`;
 const buttonKey = (tableId: string) => `poker:table:${tableId}:dealerButton`;
 
+/** Time in complete phase before auto-dealing the next hand (lets clients show result + chips). */
+const POST_HAND_DEAL_DELAY_MS = 4200;
+
 function phaseOf(st: HoldemState): HoldemState['phase'] {
   return st.phase;
 }
@@ -187,7 +190,7 @@ export class HoldemCoordinator {
       if (t && seats.length >= 2) {
         setTimeout(() => {
           void this.tryStartHand(tableId).catch(() => undefined);
-        }, 2500);
+        }, POST_HAND_DEAL_DELAY_MS);
       }
     }
     void this.tablesService.pingBroadcast(tableId);
