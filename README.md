@@ -1,5 +1,9 @@
 # Telegram Mini App Poker Platform
 
+<p align="center">
+  <img src="./assets/poker-banner.png" alt="Multiplayer Poker Telegram Mini App" width="800">
+</p>
+
 Monorepo aligned with `telegram_poker_platform_development_plan.md`.
 
 ## Structure
