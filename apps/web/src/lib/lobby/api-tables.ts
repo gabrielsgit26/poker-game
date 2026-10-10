@@ -1,6 +1,6 @@
 import { apiBase, credFetch } from "@/lib/dev-api";
 import type { TableCardModel } from "@/lib/lobby/types";
-import type { HoldemPublicSnapshot } from "@telegram-poker/shared/poker-engine";
+import type { HoldemPublicSnapshot } from "@/lib/poker-engine/holdem-types";
 
 /** Thrown when a REST call returns a non-OK status (includes Nest `message` body when JSON). */
 export class ApiRequestError extends Error {

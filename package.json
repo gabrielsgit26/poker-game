@@ -2,15 +2,13 @@
   "name": "telegram-poker-platform",
   "private": true,
   "workspaces": [
-    "apps/*",
-    "packages/*"
+    "apps/*"
   ],
   "scripts": {
     "gen:sounds": "node scripts/generate-table-sounds.mjs",
     "dev:web": "npm run dev --workspace=web",
-    "dev:server": "npm run build:shared && npm run start:dev --workspace=server",
-    "build:shared": "npm run build --workspace=@telegram-poker/shared",
-    "build": "npm run build:shared && npm run build --workspace=web && npm run build --workspace=server"
+    "dev:server": "npm run start:dev --workspace=server",
+    "build": "npm run build --workspace=web && npm run build --workspace=server"
   },
   "dependencies": {
     "@nestjs/platform-express": "^11.1.24"

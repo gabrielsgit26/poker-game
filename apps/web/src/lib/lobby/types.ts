@@ -1,4 +1,4 @@
-import type { UserRole } from "@telegram-poker/shared";
+export type UserRole = "PLAYER" | "CLUB_MANAGER" | "MASTER_ADMIN";
 
 /** Lobby filter chips (plan §6.2). */
 export type LobbyFilterId = "all" | "my_clubs" | "waiting" | "low" | "high";

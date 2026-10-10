@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.76.1",
-    "@telegram-poker/shared": "file:../../packages/shared",
     "next": "15.3.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

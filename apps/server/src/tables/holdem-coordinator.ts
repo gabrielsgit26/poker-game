@@ -12,10 +12,11 @@ import {
   type HoldemClientAction,
   type HoldemPublicSnapshot,
   type HoldemState,
-} from '@telegram-poker/shared/poker-engine';
+} from '../poker-engine/index.js';
 import { ClubTable, ClubTableDocument } from './schemas/club-table.schema';
 import { TableSeat, TableSeatDocument } from './schemas/table-seat.schema';
 import { TablesService } from './tables.service';
+import { createHandFairness, deckFromHash } from './generate-hash';
 import { REDIS_CLIENT } from '../redis/redis.module';
 
 const holdemKey = (tableId: string) => `poker:table:${tableId}:holdem`;
@@ -208,12 +209,15 @@ export class HoldemCoordinator {
     const occupiedPlaying = playingConfigs.map((c) => c.seatIndex);
     const btn = await this.readButtonSeat(tableId, occupiedPlaying);
 
+    const fairness = createHandFairness(handSeq);
     const st = startHoldemHand({
       seats: playingConfigs,
       buttonSeat: btn,
       smallBlind: t.smallBlind,
       bigBlind: t.bigBlind,
       handSeq,
+      deck: deckFromHash(fairness.privateSeed, fairness.publicSeed, fairness.nonce),
+      fairness,
     });
 
     if (buyins.length > 0) {

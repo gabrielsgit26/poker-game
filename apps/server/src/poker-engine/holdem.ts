@@ -23,6 +23,23 @@ export interface HoldemPlayerState {
   checkedPassStreet: boolean;
 }
 
+/**
+ * Commit/reveal fairness data for one hand.
+ * `publicSeed = sha256(privateSeed)` is shown before the deal (the commitment);
+ * `privateSeed` stays server-side until the hand is complete, then is revealed so
+ * anyone can recompute the hash and rebuild the deck.
+ */
+export interface HoldemFairness {
+  privateSeed: string;
+  publicSeed: string;
+  nonce: number;
+}
+
+export type HoldemPublicFairness = Omit<HoldemFairness, "privateSeed"> & {
+  /** Revealed only once `phase` is `complete`. */
+  privateSeed?: string;
+};
+
 export interface HoldemState {
   handSeq: number;
   phase: HoldemPhase;
@@ -43,6 +60,7 @@ export interface HoldemState {
   minRaise: number;
   toActSeat: number | null;
   payouts: { seatIndex: number; userId: string; amount: number }[] | null;
+  fairness?: HoldemFairness;
 }
 
 export interface HoldemPublicSnapshot {
@@ -74,6 +92,8 @@ export interface HoldemPublicSnapshot {
    * Only seats that were not folded when the hand finished.
    */
   revealedHoles?: Record<string, readonly [string, string]>;
+  /** Commit/reveal data for verifying the shuffle; omitted for non-fair hands. */
+  fairness?: HoldemPublicFairness;
 }
 
 function bySeat(p: HoldemPlayerState[], seat: number): HoldemPlayerState | undefined {
@@ -316,6 +336,9 @@ export function startHoldemHand(input: {
   bigBlind: number;
   handSeq: number;
   rng?: () => number;
+  /** Pre-built 52-card deck (cards dealt via `pop()`). Overrides `rng` when given. */
+  deck?: string[];
+  fairness?: HoldemFairness;
 }): HoldemState {
   const rng = input.rng ?? Math.random;
   const seats = [...input.seats].sort((a, b) => a.seatIndex - b.seatIndex);
@@ -335,7 +358,10 @@ export function startHoldemHand(input: {
   const sbSeat = n === 2 ? order[0]! : order[1 % n]!;
   const bbSeat = n === 2 ? order[1]! : order[2 % n]!;
 
-  const deck = shuffle(fullDeck(), rng);
+  const deck = input.deck ? [...input.deck] : shuffle(fullDeck(), rng);
+  if (deck.length !== 52 || new Set(deck).size !== 52) {
+    throw new Error("deck must contain 52 unique cards");
+  }
   const players: HoldemPlayerState[] = seats.map((sc) => ({
     seatIndex: sc.seatIndex,
     userId: sc.userId,
@@ -379,6 +405,7 @@ export function startHoldemHand(input: {
     minRaise: input.bigBlind,
     toActSeat: null,
     payouts: null,
+    fairness: input.fairness,
   };
 
   postBlinds(s);
@@ -426,6 +453,11 @@ export function holdemPublicSnapshot(s: HoldemState): HoldemPublicSnapshot {
     seats,
     payouts: s.payouts,
     revealedHoles,
+    fairness: s.fairness && {
+      publicSeed: s.fairness.publicSeed,
+      nonce: s.fairness.nonce,
+      ...(s.phase === "complete" ? { privateSeed: s.fairness.privateSeed } : {}),
+    },
   };
 }
 

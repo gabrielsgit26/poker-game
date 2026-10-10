@@ -26,9 +26,18 @@ export function fullDeck(): string[] {
 }
 
 export function shuffle<T>(items: T[], rng: () => number = Math.random): T[] {
+  return shuffleWith(items, (max) => Math.floor(rng() * max));
+}
+
+/**
+ * Fisher–Yates driven by a uniform integer source in [0, max).
+ * Deterministic for a deterministic source, so anyone holding the revealed seed
+ * can rebuild the identical deck and verify the deal.
+ */
+export function shuffleWith<T>(items: T[], randomInt: (max: number) => number): T[] {
   const a = [...items];
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
+    const j = randomInt(i + 1);
     [a[i], a[j]] = [a[j]!, a[i]!];
   }
   return a;
