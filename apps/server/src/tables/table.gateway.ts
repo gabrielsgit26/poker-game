@@ -16,6 +16,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { TablesService } from './tables.service';
+import { corsOrigins } from '../cors-origins';
 
 export const tableRoomId = (tableId: string) => `table:${tableId}`;
 
@@ -36,10 +37,10 @@ function devUserIdFromSocket(client: Socket): string {
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.CORS_ORIGIN?.split(',') ?? [
-      'http://localhost:3000',
-      'https://web.telegram.org',
-    ],
+    // Resolved per request: decorator args run at import time, before ConfigModule loads .env.
+    origin: (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
+      cb(null, !origin || corsOrigins().includes(origin));
+    },
     credentials: true,
   },
 })

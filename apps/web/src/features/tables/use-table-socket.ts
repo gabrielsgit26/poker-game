@@ -8,7 +8,7 @@ import type {
   TableDetailApi,
   TableSocketActionApi,
 } from "@/lib/lobby/api-tables";
-import { apiBase } from "@/lib/dev-api";
+import { apiBase, ngrokHeaders } from "@/lib/dev-api";
 
 function tableSocketOrigin(): string | null {
   const base = apiBase();
@@ -131,6 +131,8 @@ export function useTableSocket(
       path: "/socket.io",
       transports: ["websocket", "polling"],
       withCredentials: true,
+      // Applies to the HTTP polling fallback; skips ngrok's browser-warning page.
+      extraHeaders: ngrokHeaders(),
       auth: { userId },
       reconnection: true,
       reconnectionAttempts: Infinity,

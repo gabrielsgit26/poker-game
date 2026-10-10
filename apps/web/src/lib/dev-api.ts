@@ -33,8 +33,28 @@ export function apiUrl(versionLessPath: string): string | null {
   return base.startsWith("/") ? `${base}/${p}` : `${base}/${p}`;
 }
 
+/**
+ * ngrok's free tier answers browser requests with an HTML "visit site" warning page
+ * (no CORS headers) unless this header is present. Only sent when the API is on ngrok.
+ */
+export function ngrokHeaders(): Record<string, string> {
+  return /\.ngrok(-free)?\.(app|dev|io)$/i.test(apiHost() ?? "")
+    ? { "ngrok-skip-browser-warning": "true" }
+    : {};
+}
+
+function apiHost(): string | null {
+  const base = apiBase();
+  if (!base || base.startsWith("/")) return null;
+  try {
+    return new URL(base).hostname;
+  } catch {
+    return null;
+  }
+}
+
 export function devHeaders(): HeadersInit {
-  return { "X-Dev-User-Id": currentDevUserId() };
+  return { "X-Dev-User-Id": currentDevUserId(), ...ngrokHeaders() };
 }
 
 export function credFetch(input: string, init?: RequestInit): Promise<Response> {
