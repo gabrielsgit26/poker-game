@@ -23,9 +23,16 @@ export function LoginClient() {
   const nextPath = safeNextPath(searchParams.get("next"));
 
   const tryTelegram = useCallback(async () => {
-    const initData =
-      typeof window !== "undefined" ? window.Telegram?.WebApp?.initData ?? "" : "";
-    if (!initData.trim()) return false;
+    const webApp = typeof window !== "undefined" ? window.Telegram?.WebApp : undefined;
+    const initData = webApp?.initData ?? "";
+    if (!initData.trim()) {
+      // Inside Telegram but no initData: opened via a plain URL/link, not the bot's Web App button.
+      if (webApp?.platform && webApp.platform !== "unknown") {
+        setStatus("err");
+        setErrMsg("Telegram didn't provide login data. Open the app from the bot's menu button.");
+      }
+      return false;
+    }
     setStatus("tg");
     setErrMsg(null);
     const ok = await telegramLogin(initData);

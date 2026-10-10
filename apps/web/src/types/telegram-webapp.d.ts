@@ -11,6 +11,8 @@ declare global {
         /** Raw signed string for POST /auth/telegram */
         initData: string;
         initDataUnsafe?: unknown;
+        /** Client platform ("ios", "android", "tdesktop", "weba", …); "unknown" outside Telegram. */
+        platform?: string;
       };
     };
   }

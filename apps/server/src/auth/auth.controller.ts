@@ -13,7 +13,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { AuthService, POKER_SESSION_COOKIE } from './auth.service';
+import { AuthService, POKER_SESSION_COOKIE, sessionTokenFromRequest } from './auth.service';
 import { verifyTelegramWebAppInitData } from './telegram-web-app-init-data';
 import { UsersService } from './users.service';
 
@@ -102,14 +102,15 @@ export class AuthController {
       maxAge: 1000 * 60 * 60 * 24 * 14,
       path: '/',
     });
-    return { ok: true as const, userId };
+    return { ok: true as const, userId, token };
   }
 
   @Post('logout')
   @HttpCode(200)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const sid = req.cookies?.[POKER_SESSION_COOKIE];
-    if (typeof sid === 'string') await this.auth.revokeSession(sid);
+    for (const sid of [sessionTokenFromRequest(req), req.cookies?.[POKER_SESSION_COOKIE]]) {
+      if (typeof sid === 'string') await this.auth.revokeSession(sid);
+    }
     res.clearCookie(POKER_SESSION_COOKIE, { path: '/' });
     return { ok: true as const };
   }
@@ -157,6 +158,6 @@ export class AuthController {
       maxAge: 1000 * 60 * 60 * 24 * 14,
       path: '/',
     });
-    return { ok: true as const, userId };
+    return { ok: true as const, userId, token };
   }
 }

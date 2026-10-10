@@ -8,24 +8,37 @@ const SESSION_PREFIX = 'poker:sess:';
 const SESSION_TTL_SEC = 60 * 60 * 24 * 14; // 14 days
 export const POKER_SESSION_COOKIE = 'poker_sid';
 
+/** Session token from `Authorization: Bearer <token>`, or null. */
+export function sessionTokenFromRequest(req: Request): string | null {
+  const h = req.headers.authorization;
+  const m = typeof h === 'string' ? /^Bearer\s+(\S+)$/i.exec(h.trim()) : null;
+  return m ? m[1]! : null;
+}
+
 @Injectable()
 export class AuthService {
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
 
   async resolveUserIdFromRequest(req: Request): Promise<string> {
-    const sid = req.cookies?.[POKER_SESSION_COOKIE];
-    if (typeof sid === 'string' && sid.length >= 16) {
-      try {
-        const uid = await this.redis.get(`${SESSION_PREFIX}${sid}`);
-        if (uid) return uid;
-      } catch {
-        /* optional Redis */
-      }
+    // Bearer token first: the web app and API are on different sites (e.g. Vercel + ngrok),
+    // where the cookie is never sent and Telegram webviews may block third-party cookies.
+    for (const sid of [sessionTokenFromRequest(req), req.cookies?.[POKER_SESSION_COOKIE]]) {
+      const uid = await this.userIdForSession(sid);
+      if (uid) return uid;
     }
     const raw = req.headers['x-dev-user-id'];
     const header =
       typeof raw === 'string' ? raw.trim() : Array.isArray(raw) ? raw[0]?.trim() : '';
     return header.length > 0 ? header : 'local-player';
+  }
+
+  async userIdForSession(sid: unknown): Promise<string | null> {
+    if (typeof sid !== 'string' || sid.length < 16) return null;
+    try {
+      return await this.redis.get(`${SESSION_PREFIX}${sid}`);
+    } catch {
+      return null; /* optional Redis */
+    }
   }
 
   async createSession(userId: string): Promise<string> {

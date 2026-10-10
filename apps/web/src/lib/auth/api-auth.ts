@@ -1,4 +1,13 @@
-import { apiUrl, credFetch } from "@/lib/dev-api";
+import { apiUrl, credFetch, setSessionToken } from "@/lib/dev-api";
+
+type LoginResponse = { ok: true; userId: string; token?: string };
+
+async function readLogin(res: Response): Promise<{ ok: true; userId: string } | null> {
+  if (!res.ok) return null;
+  const body = (await res.json()) as LoginResponse;
+  if (body.token) setSessionToken(body.token);
+  return { ok: true, userId: body.userId };
+}
 
 export type AuthMeResponse =
   | {
@@ -45,15 +54,16 @@ export async function postDevLogin(body: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) return null;
-  return (await res.json()) as { ok: true; userId: string };
+  return readLogin(res);
 }
 
 export async function postLogout(): Promise<boolean> {
   const url = apiUrl("auth/logout");
   if (!url) return false;
-  const res = await credFetch(url, { method: "POST" });
-  return res.ok;
+  // Send the token so the server revokes it, then forget it locally either way.
+  const res = await credFetch(url, { method: "POST" }).catch(() => null);
+  setSessionToken(null);
+  return res?.ok ?? false;
 }
 
 /** Telegram Mini App — server validates `initData` and sets `poker_sid`. */
@@ -65,6 +75,5 @@ export async function postTelegramLogin(initData: string): Promise<{ ok: true; u
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ initData }),
   });
-  if (!res.ok) return null;
-  return (await res.json()) as { ok: true; userId: string };
+  return readLogin(res);
 }

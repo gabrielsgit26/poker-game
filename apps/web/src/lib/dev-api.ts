@@ -57,8 +57,39 @@ export function devHeaders(): HeadersInit {
   return { "X-Dev-User-Id": currentDevUserId(), ...ngrokHeaders() };
 }
 
+const SESSION_TOKEN_KEY = "poker_session_token";
+let sessionToken: string | null | undefined;
+
+/**
+ * Session token returned by `/auth/telegram` and `/auth/dev-login`, sent as a Bearer header.
+ * The `poker_sid` cookie alone fails when the web app and API are on different sites
+ * (Vercel + ngrok) or the Telegram webview blocks third-party cookies.
+ */
+export function getSessionToken(): string | null {
+  if (sessionToken === undefined) {
+    try {
+      sessionToken = localStorage.getItem(SESSION_TOKEN_KEY);
+    } catch {
+      sessionToken = null;
+    }
+  }
+  return sessionToken;
+}
+
+export function setSessionToken(token: string | null): void {
+  sessionToken = token;
+  try {
+    if (token) localStorage.setItem(SESSION_TOKEN_KEY, token);
+    else localStorage.removeItem(SESSION_TOKEN_KEY);
+  } catch {
+    /* storage unavailable — token still kept in memory for this page load */
+  }
+}
+
 export function credFetch(input: string, init?: RequestInit): Promise<Response> {
   const h = new Headers(devHeaders());
+  const token = getSessionToken();
+  if (token) h.set("Authorization", `Bearer ${token}`);
   if (init?.headers) {
     new Headers(init.headers).forEach((value, key) => {
       h.set(key, value);
