@@ -1,5 +1,12 @@
+
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { fullDeck, shuffleWith, type HoldemFairness } from '../poker-engine/index.js';
+import {
+  initializeHash,
+  generateServeHash,
+} from './server-hash.js';
+
+ initializeHash();
 
 /**
  * Commit/reveal fair deal.
@@ -30,6 +37,8 @@ export interface GeneratedHash {
 }
 
 export function generateHash(): GeneratedHash {
+  const hash = generateServeHash();
+  if(hash) return hash;
   // Salt (if any) only seasons generation; the resulting privateSeed is a plain
   // 32-byte hex value, and verification needs nothing but it.
   const raw = randomBytes(32).toString('hex');
