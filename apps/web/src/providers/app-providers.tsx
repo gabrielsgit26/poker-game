@@ -1,7 +1,7 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
 import { ThemeRoot } from "@/features/settings/theme-root";
 import { I18nProvider } from "@/lib/i18n/i18n-context";
@@ -19,6 +19,12 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         },
       }),
   );
+
+  // Tell Telegram the Mini App is ready (hides its loading screen) on whichever page opens first.
+  useEffect(() => {
+    window.Telegram?.WebApp?.ready();
+    window.Telegram?.WebApp?.expand?.();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import Script from "next/script";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useAuthActions, useAuthSession } from "@/providers/auth-context";
+
+/** Module-level so it survives the login page unmounting/remounting during a session refresh. */
+let autoTelegramAttempted = false;
 
 function safeNextPath(raw: string | null): string {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/lobby";
@@ -18,7 +20,6 @@ export function LoginClient() {
   const { ready, me, skipGate } = useAuthSession();
   const [status, setStatus] = useState<"idle" | "tg" | "err">("idle");
   const [errMsg, setErrMsg] = useState<string | null>(null);
-  const [tgScriptLoaded, setTgScriptLoaded] = useState(false);
 
   const nextPath = safeNextPath(searchParams.get("next"));
 
@@ -35,10 +36,14 @@ export function LoginClient() {
     }
     setStatus("tg");
     setErrMsg(null);
-    const ok = await telegramLogin(initData);
-    if (!ok) {
+    const result = await telegramLogin(initData);
+    if (result !== "ok") {
       setStatus("err");
-      setErrMsg("Telegram sign-in failed. Try again or contact support.");
+      setErrMsg(
+        result === "rejected"
+          ? "Telegram sign-in failed. Try again or contact support."
+          : "Signed in, but the server didn't keep the session. Try again or contact support.",
+      );
       return false;
     }
     router.replace(nextPath);
@@ -53,23 +58,19 @@ export function LoginClient() {
     }
   }, [skipGate, ready, me, router, nextPath]);
 
+  // telegram-web-app.js is loaded beforeInteractive in the root layout, so it's ready here.
+  // Auto-attempt once per page load. Each attempt refreshes the session, which briefly sets
+  // `ready=false` and the auth gate unmounts this page — so a per-mount guard would reset and
+  // loop forever if the session doesn't stick. Retry after that is manual.
   useEffect(() => {
-    if (skipGate || !ready || !tgScriptLoaded) return;
+    if (skipGate || !ready || autoTelegramAttempted) return;
     if (me?.authenticated) return;
+    autoTelegramAttempted = true;
     void tryTelegram();
-  }, [skipGate, ready, me, tgScriptLoaded, tryTelegram]);
+  }, [skipGate, ready, me, tryTelegram]);
 
   return (
     <>
-      <Script
-        src="https://telegram.org/js/telegram-web-app.js"
-        strategy="afterInteractive"
-        onLoad={() => {
-          window.Telegram?.WebApp?.ready();
-          window.Telegram?.WebApp?.expand?.();
-          setTgScriptLoaded(true);
-        }}
-      />
       <div className="mx-auto max-w-md px-4 py-8">
         <h1 className="text-2xl font-semibold text-zinc-50">Sign in</h1>
         <p className="mt-2 text-sm leading-relaxed text-zinc-400">

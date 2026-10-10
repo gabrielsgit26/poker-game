@@ -17,7 +17,8 @@ const AuthUserContext = createContext<string>(DEV_USER_ID);
 const AuthActionsContext = createContext<{
   refresh: () => Promise<void>;
   devLogin: (userId?: string) => Promise<boolean>;
-  telegramLogin: (initData: string) => Promise<boolean>;
+  /** "rejected" = server refused initData; "no-session" = accepted but `/auth/me` still unauthenticated. */
+  telegramLogin: (initData: string) => Promise<"ok" | "rejected" | "no-session">;
   logout: () => Promise<void>;
 } | null>(null);
 
@@ -37,27 +38,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(skipGate);
   const [me, setMe] = useState<AuthMeResponse | null>(null);
 
-  const applyMe = useCallback(async () => {
+  const applyMe = useCallback(async (): Promise<AuthMeResponse | null> => {
     if (!hasAuthApi()) {
       setReady(true);
       setMe(null);
       setUserId(DEV_USER_ID);
       setResolvedUserId(DEV_USER_ID);
-      return;
+      return null;
     }
-    setReady(false);
+    // `ready` stays true on refreshes: flipping it back makes the auth gate swap the whole app
+    // for a spinner, unmounting the current page (and losing its state) on every refresh.
     const res = await fetchAuthMe();
     setReady(true);
     if (!res) {
       setMe(null);
       setUserId(DEV_USER_ID);
       setResolvedUserId(DEV_USER_ID);
-      return;
+      return null;
     }
     setMe(res);
     const id = res.authenticated ? res.user.userId : res.userId;
     setUserId(id);
     setResolvedUserId(id);
+    return res;
   }, []);
 
   useEffect(() => {
@@ -76,10 +79,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const telegramLogin = useCallback(
     async (initData: string) => {
-      const r = await postTelegramLogin(initData);
-      if (!r) return false;
-      await applyMe();
-      return true;
+      const r = await postTelegramLogin(initData).catch(() => null);
+      if (!r) return "rejected" as const;
+      const me = await applyMe();
+      return me?.authenticated ? ("ok" as const) : ("no-session" as const);
     },
     [applyMe],
   );
@@ -91,7 +94,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const actions = useMemo(
     () => ({
-      refresh: applyMe,
+      refresh: async () => {
+        await applyMe();
+      },
       devLogin,
       telegramLogin,
       logout,
