@@ -8,9 +8,7 @@
   "scripts": {
     "gen:sounds": "node scripts/generate-table-sounds.mjs",
     "dev:web": "npm run dev --workspace=web",
-    "build:engine": "npm run build --workspace=@telegram-poker/poker-engine",
-    "dev:engine": "npm run dev --workspace=@telegram-poker/poker-engine",
-    "dev:server": "npm run build:engine && npm run start:dev --workspace=server",
+    "dev:server": "npm run start:dev --workspace=server",
     "build": "npm run build:engine && npm run build --workspace=web && npm run build --workspace=server"
   },
   "dependencies": {

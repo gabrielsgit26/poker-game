@@ -14,7 +14,7 @@ import {
   type HoldemClientAction,
   type HoldemPublicSnapshot,
   type HoldemState,
-} from '@telegram-poker/poker-engine';
+} from 'tpoker-lib';
 import { ClubTable, ClubTableDocument } from './schemas/club-table.schema';
 import { TableSeat, TableSeatDocument } from './schemas/table-seat.schema';
 import { TablesService } from './tables.service';
