@@ -2,11 +2,8 @@
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { fullDeck, shuffleWith, type HoldemFairness } from '../poker-engine/index.js';
 import {
-  initializeHash,
   generateServeHash,
 } from './server-hash.js';
-
- initializeHash();
 
 /**
  * Commit/reveal fair deal.

