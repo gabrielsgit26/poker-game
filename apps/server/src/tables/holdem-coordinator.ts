@@ -4,6 +4,8 @@ import { Model } from 'mongoose';
 import Redis from 'ioredis';
 import {
   applyHoldemAction,
+  createHandFairness,
+  deckFromHash,
   forceFoldPlayer,
   holdemPublicSnapshot,
   nextButtonSeat,
@@ -12,11 +14,10 @@ import {
   type HoldemClientAction,
   type HoldemPublicSnapshot,
   type HoldemState,
-} from '../poker-engine/index.js';
+} from '@telegram-poker/poker-engine';
 import { ClubTable, ClubTableDocument } from './schemas/club-table.schema';
 import { TableSeat, TableSeatDocument } from './schemas/table-seat.schema';
 import { TablesService } from './tables.service';
-import { createHandFairness, deckFromHash } from './generate-hash';
 import { REDIS_CLIENT } from '../redis/redis.module';
 
 const holdemKey = (tableId: string) => `poker:table:${tableId}:holdem`;

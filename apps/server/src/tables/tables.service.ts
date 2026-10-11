@@ -28,7 +28,7 @@ import { TableSeat, TableSeatDocument } from './schemas/table-seat.schema';
 import type {
   HoldemClientAction,
   HoldemPublicSnapshot,
-} from '../poker-engine/index.js';
+} from '@telegram-poker/poker-engine';
 import { UsersService } from '../auth/users.service';
 import { TableGateway } from './table.gateway';
 import { HoldemCoordinator } from './holdem-coordinator';

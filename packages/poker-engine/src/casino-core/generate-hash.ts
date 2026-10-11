@@ -1,6 +1,7 @@
 
 import { createHash, createHmac, randomBytes } from 'node:crypto';
-import { fullDeck, shuffleWith, type HoldemFairness } from '../poker-engine/index.js';
+import { fullDeck, shuffleWith } from '../cards.js';
+import type { HoldemFairness, HoldemPublicFairness } from '../holdem.js';
 
 /**
  * Commit/reveal fair deal.
@@ -81,4 +82,32 @@ export function createHandFairness(nonce: number): HoldemFairness {
 export function verifyHandDeck(f: HoldemFairness): string[] | null {
   if (sha256Hex(f.privateSeed) !== f.publicSeed) return null;
   return deckFromHash(f.privateSeed, f.publicSeed, f.nonce);
+}
+
+export type FairnessFailure = 'private_seed_not_revealed' | 'seed_mismatch' | 'deck_mismatch';
+
+export interface FairnessVerification {
+  valid: boolean;
+  /** Set when `valid` is false. */
+  reason?: FairnessFailure;
+  /** Deck rebuilt from the seeds; null when the commitment itself could not be checked. */
+  deck: string[] | null;
+}
+
+/**
+ * Verifies a hand's commit/reveal data, e.g. the `fairness` of a completed public snapshot.
+ * Checks sha256(privateSeed) === publicSeed, rebuilds the deck from (privateSeed, publicSeed,
+ * nonce) and, when `expectedDeck` is given, confirms it is card-for-card the deck that was used.
+ */
+export function verifyFairness(
+  f: HoldemPublicFairness,
+  expectedDeck?: readonly string[],
+): FairnessVerification {
+  if (!f.privateSeed) return { valid: false, reason: 'private_seed_not_revealed', deck: null };
+  const deck = verifyHandDeck({ ...f, privateSeed: f.privateSeed });
+  if (!deck) return { valid: false, reason: 'seed_mismatch', deck: null };
+  if (expectedDeck && (expectedDeck.length !== deck.length || deck.some((c, i) => c !== expectedDeck[i]))) {
+    return { valid: false, reason: 'deck_mismatch', deck };
+  }
+  return { valid: true, deck };
 }

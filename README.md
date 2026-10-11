@@ -12,7 +12,7 @@ Monorepo aligned with `telegram_poker_platform_development_plan.md`.
 |------|---------|
 | `apps/web` | Next.js — lobby, **`/wallet`** (platform balance, deposit/withdraw requests, history), **`/profile`** (live data via **`GET /profile`** when the API is configured), **`/tables/*`** (**SVG** oval felt + **HTML** seat HUD / actions; chip flights + deal animations in CSS), **`/clubs/*`**, Socket.IO, TanStack Query |
 | `apps/server` | NestJS — **`GET /health`**, **`/auth/*`**, **`/profile`** (signed-in player snapshot: balances, club rows, merged ledger + platform wallet activity), **`/clubs`**, **`/tables`**, **`/wallet/*`**, **Socket.IO** (table rooms, `tableState` / `tableClosed`) |
-| `packages/shared` | Shared types and **`@telegram-poker/shared/poker-engine`** (NL hold’em: deck, streets, pot, showdown) |
+| `packages/poker-engine` | **`@telegram-poker/poker-engine`** npm package (NL hold’em: deck, streets, pot, showdown, commit/reveal fair deal) |
 
 ## Developing without Telegram
 
@@ -25,7 +25,7 @@ See **[docs/DEVELOPMENT_STATUS.md](docs/DEVELOPMENT_STATUS.md)** for a phase-by-
 ## Phase 1–8 (MVP engine + live table)
 
 - **Phases 1–6:** As before (shell, lobby, profile, settings, clubs, tables with seats + HTTP sit/leave/close).
-- **Phase 7:** **`packages/shared/src/poker-engine`** — NL-style state machine (`startHoldemHand`, `applyHoldemAction`, board runout, pot, payouts). Imported by the Nest **`HoldemCoordinator`** (Redis `poker:table:{id}:holdem` + dealer button key).
+- **Phase 7:** **`packages/poker-engine`** (`@telegram-poker/poker-engine`) — NL-style state machine (`startHoldemHand`, `applyHoldemAction`, board runout, pot, payouts). Imported by the Nest **`HoldemCoordinator`** (Redis `poker:table:{id}:holdem` + dealer button key).
 - **Phase 8:** Socket.IO **`gameAction`** with `{ type: 'fold' | 'check' | 'call' | 'bet' | 'raise_to', amount? }` during **`holdem.phase === 'betting'`**; legacy **`tableAction`** (`check` \| `fold`) remains for the synthetic turn when no engine hand is active. **`tableState`** and **`GET /tables/:id`** include **`holdem`** (public snapshot) and per-viewer **`viewerHoleCards`**; **`joinTable`** may emit **`yourHoleCards`**. The action clock applies hold’em **check**/**fold** on timeout when a betting hand is active. **Still TODO:** JWT auth, side pots / full all-in rules, production multi-node timers.
 
 ## Prerequisites
