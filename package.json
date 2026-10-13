@@ -7,11 +7,15 @@
   ],
   "scripts": {
     "gen:sounds": "node scripts/generate-table-sounds.mjs",
+    "dev": "concurrently -k -n web,server -c cyan,magenta \"npm run dev:web\" \"npm run dev:server\"",
     "dev:web": "npm run dev --workspace=web",
     "dev:server": "npm run start:dev --workspace=server",
     "build": "npm run build:engine && npm run build --workspace=web && npm run build --workspace=server"
   },
   "dependencies": {
     "@nestjs/platform-express": "^11.1.24"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6"
   }
 }
